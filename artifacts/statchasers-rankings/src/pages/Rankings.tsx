@@ -160,11 +160,23 @@ export default function Rankings() {
       .map((tier) => ({ tier, players: groups[tier] }));
   }, [filteredData]);
 
+  // Re-report height to parent iframe host whenever content changes
+  useEffect(() => {
+    if (window.self === window.top) return;
+    const timer = setTimeout(() => {
+      window.parent.postMessage(
+        { type: "iframe-resize", height: document.body.scrollHeight },
+        "*"
+      );
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [filteredData]);
+
   const positions = ["QB", "RB", "WR", "TE"];
   const scoringFormats = ["Standard", "Half PPR", "PPR"];
 
   return (
-    <div className="min-h-[100dvh] bg-white font-sans">
+    <div className="bg-white font-sans">
 
       {/* Sticky Filter Bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-border shadow-sm">
