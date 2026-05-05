@@ -72,15 +72,23 @@ export default function Rankings() {
       });
   }, []);
 
+  const POSITION_LIMITS: Record<string, number> = {
+    QB: 35,
+    RB: 40,
+    WR: 70,
+    TE: 40,
+  };
+
   const filteredData = useMemo(() => {
+    const limit = POSITION_LIMITS[filterPosition] ?? Infinity;
     return data
       .filter(
         (p) =>
-          // If no scoring column in CSV, show under all scoring tabs
           (!p.scoring || p.scoring === filterScoring) &&
           p.position === filterPosition
       )
-      .sort((a, b) => a.rank - b.rank);
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, limit);
   }, [data, filterPosition, filterScoring]);
 
   const groupedByTier = useMemo(() => {
