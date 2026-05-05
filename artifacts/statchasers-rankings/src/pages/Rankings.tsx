@@ -136,20 +136,8 @@ export default function Rankings() {
   return (
     <div className="min-h-[100dvh] bg-muted font-sans">
 
-      {/* Header */}
-      <header className="bg-white border-b-2 border-border py-6 px-4 md:px-8 text-center sticky top-0 z-20 shadow-sm">
-        <h1 className="text-3xl md:text-4xl font-black tracking-tight uppercase">
-          <span className="text-foreground">STAT</span>
-          <span className="text-primary">CHASERS</span>
-        </h1>
-        <p className="text-muted-foreground font-medium tracking-widest mt-1 text-xs md:text-sm uppercase">
-          2026 Redraft Rankings
-        </p>
-        <div className="w-14 h-1 bg-primary rounded-full mx-auto mt-3" />
-      </header>
-
       {/* Sticky Filter Bar */}
-      <div className="sticky top-[89px] md:top-[97px] z-10 bg-white border-b border-border shadow-sm">
+      <div className="sticky top-0 z-10 bg-white border-b border-border shadow-sm">
         <div className="max-w-5xl mx-auto px-4 md:px-8 py-3 flex flex-col md:flex-row gap-3 items-center justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-foreground uppercase tracking-wider hidden md:inline-block">
