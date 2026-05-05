@@ -132,21 +132,27 @@ export default function Rankings() {
               FORMAT
             </span>
             <div className="flex gap-1.5">
-              {scoringFormats.map((fmt) => (
-                <button
-                  key={fmt}
-                  data-testid={`filter-scoring-${fmt.replace(" ", "-")}`}
-                  onClick={() => setFilterScoring(fmt)}
-                  className={cn(
-                    "px-3 md:px-4 py-1.5 text-sm font-semibold rounded-lg border transition-all duration-150 whitespace-nowrap",
-                    filterScoring === fmt
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : "bg-secondary text-secondary-foreground border-transparent hover:border-border"
-                  )}
-                >
-                  {fmt}
-                </button>
-              ))}
+              {scoringFormats.map((fmt) => {
+                const isDisabled = fmt !== "PPR";
+                return (
+                  <button
+                    key={fmt}
+                    data-testid={`filter-scoring-${fmt.replace(" ", "-")}`}
+                    onClick={() => !isDisabled && setFilterScoring(fmt)}
+                    disabled={isDisabled}
+                    className={cn(
+                      "px-3 md:px-4 py-1.5 text-sm font-semibold rounded-lg border transition-all duration-150 whitespace-nowrap",
+                      isDisabled
+                        ? "bg-secondary text-secondary-foreground/30 border-transparent opacity-40 cursor-not-allowed"
+                        : filterScoring === fmt
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-secondary text-secondary-foreground border-transparent hover:border-border"
+                    )}
+                  >
+                    {fmt}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
