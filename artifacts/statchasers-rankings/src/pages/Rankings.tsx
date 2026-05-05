@@ -101,7 +101,18 @@ export default function Rankings() {
     ],
   };
 
-  function getTier(position: string, rank: number): number {
+  // Player-specific tier overrides (name must match CSV exactly)
+  const PLAYER_TIER_OVERRIDES: Record<string, number> = {
+    "Kyle Pitts": 7,
+    "Kyle Pitts Sr.": 7,
+    "Harold Fannin Jr.": 5,
+    "Harold Fannin": 5,
+  };
+
+  function getTier(position: string, rank: number, playerName: string): number {
+    if (PLAYER_TIER_OVERRIDES[playerName] !== undefined) {
+      return PLAYER_TIER_OVERRIDES[playerName];
+    }
     const rules = TIER_RULES[position];
     if (!rules) return 1;
     for (const [maxRank, tier] of rules) {
@@ -127,7 +138,7 @@ export default function Rankings() {
       )
       .sort((a, b) => a.rank - b.rank)
       .slice(0, limit)
-      .map((p) => ({ ...p, tier: getTier(p.position, p.rank) }));
+      .map((p) => ({ ...p, tier: getTier(p.position, p.rank, p.player) }));
   }, [data, filterPosition, filterScoring]);
 
   const groupedByTier = useMemo(() => {
