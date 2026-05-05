@@ -3,15 +3,16 @@ import Papa from "papaparse";
 import { Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// ← Replace with your Google Sheet CSV export URL
-const SHEET_URL = "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/export?format=csv&gid=0";
+// Static rankings file served from /public.
+// Swap this for a Google Sheet CSV URL when ready.
+const SHEET_URL = "/rankings.csv";
 
 interface Player {
   tier: number;
   rank: number;
   player: string;
   position: string;
-  scoring: string;
+  scoring?: string; // optional — if absent, player shows under every scoring tab
 }
 
 export default function Rankings() {
@@ -23,74 +24,37 @@ export default function Rankings() {
   const [filterPosition, setFilterPosition] = useState<string>("QB");
   const [filterScoring, setFilterScoring] = useState<string>("PPR");
 
+  // Load rankings CSV
   useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        setError(null);
+    setLoading(true);
+    setError(null);
 
-        if (SHEET_URL.includes("YOUR_SHEET_ID")) {
-          const mockData: Player[] = [
-            { tier: 1, rank: 1, player: "Christian McCaffrey", position: "RB", scoring: "PPR" },
-            { tier: 1, rank: 2, player: "CeeDee Lamb", position: "WR", scoring: "PPR" },
-            { tier: 1, rank: 3, player: "Tyreek Hill", position: "WR", scoring: "PPR" },
-            { tier: 2, rank: 4, player: "Breece Hall", position: "RB", scoring: "PPR" },
-            { tier: 2, rank: 5, player: "Justin Jefferson", position: "WR", scoring: "PPR" },
-            { tier: 2, rank: 6, player: "Amon-Ra St. Brown", position: "WR", scoring: "PPR" },
-            { tier: 3, rank: 7, player: "Bijan Robinson", position: "RB", scoring: "PPR" },
-            { tier: 3, rank: 8, player: "A.J. Brown", position: "WR", scoring: "PPR" },
-            { tier: 3, rank: 9, player: "Jonathan Taylor", position: "RB", scoring: "PPR" },
-            { tier: 3, rank: 10, player: "Josh Allen", position: "QB", scoring: "PPR" },
-            { tier: 3, rank: 11, player: "Travis Kelce", position: "TE", scoring: "PPR" },
-            { tier: 1, rank: 1, player: "Christian McCaffrey", position: "RB", scoring: "Standard" },
-            { tier: 1, rank: 2, player: "Breece Hall", position: "RB", scoring: "Standard" },
-            { tier: 1, rank: 3, player: "Bijan Robinson", position: "RB", scoring: "Standard" },
-            { tier: 1, rank: 1, player: "Christian McCaffrey", position: "RB", scoring: "Half PPR" },
-            { tier: 1, rank: 2, player: "CeeDee Lamb", position: "WR", scoring: "Half PPR" },
-            { tier: 2, rank: 3, player: "Breece Hall", position: "RB", scoring: "Half PPR" },
-            { tier: 2, rank: 4, player: "Josh Allen", position: "QB", scoring: "Half PPR" },
-            { tier: 1, rank: 1, player: "Josh Allen", position: "QB", scoring: "PPR" },
-            { tier: 1, rank: 2, player: "Lamar Jackson", position: "QB", scoring: "PPR" },
-            { tier: 2, rank: 3, player: "Jalen Hurts", position: "QB", scoring: "PPR" },
-            { tier: 2, rank: 4, player: "Patrick Mahomes", position: "QB", scoring: "PPR" },
-            { tier: 3, rank: 5, player: "C.J. Stroud", position: "QB", scoring: "PPR" },
-            { tier: 1, rank: 1, player: "Travis Kelce", position: "TE", scoring: "PPR" },
-            { tier: 2, rank: 2, player: "Sam LaPorta", position: "TE", scoring: "PPR" },
-            { tier: 2, rank: 3, player: "Trey McBride", position: "TE", scoring: "PPR" },
-          ];
-          setData(mockData);
-          setLoading(false);
-          return;
-        }
-
-        Papa.parse(SHEET_URL, {
-          download: true,
-          header: true,
-          dynamicTyping: true,
-          complete: (results) => {
-            const validData = (results.data as any[]).filter(
-              (row) => row.player && row.tier && row.rank
-            );
-            setData(validData as Player[]);
-            setLoading(false);
-          },
-          error: (err) => {
-            setError(`Failed to fetch rankings: ${err.message}`);
-            setLoading(false);
-          },
-        });
-      } catch (err) {
-        setError(
-          `Failed to load rankings: ${err instanceof Error ? err.message : "Unknown error"}`
-        );
+    Papa.parse(SHEET_URL, {
+      download: true,
+      header: true,
+      dynamicTyping: true,
+      complete: (results) => {
+        const rows = (results.data as any[])
+          .filter((row) => row.Player || row.player)
+          .map((row) => ({
+            // Support both old (lowercase) and new (title-case / "Final Rank") column names
+            tier: Number(row.tier ?? row.Tier) || 1,
+            rank: Number(row["Final Rank"] ?? row["final rank"] ?? row.rank ?? row.Rank) || 0,
+            player: String(row.Player ?? row.player ?? "").trim(),
+            position: String(row.Position ?? row.position ?? "").trim(),
+            scoring: row.scoring ?? row.Scoring ?? undefined,
+          }));
+        setData(rows as Player[]);
         setLoading(false);
-      }
-    }
-
-    fetchData();
+      },
+      error: (err) => {
+        setError(`Failed to load rankings: ${err.message}`);
+        setLoading(false);
+      },
+    });
   }, []);
 
-  // Fetch player→team lookup from Sleeper's public API (no auth required)
+  // Fetch player → team lookup from Sleeper's public API (no auth required)
   useEffect(() => {
     fetch("https://api.sleeper.app/v1/players/nfl")
       .then((r) => r.json())
@@ -112,8 +76,9 @@ export default function Rankings() {
     return data
       .filter(
         (p) =>
-          p.scoring === filterScoring &&
-          (filterPosition === "All" || p.position === filterPosition)
+          // If no scoring column in CSV, show under all scoring tabs
+          (!p.scoring || p.scoring === filterScoring) &&
+          p.position === filterPosition
       )
       .sort((a, b) => a.rank - b.rank);
   }, [data, filterPosition, filterScoring]);
