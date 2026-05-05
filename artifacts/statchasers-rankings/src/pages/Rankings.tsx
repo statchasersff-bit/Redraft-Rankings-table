@@ -194,19 +194,27 @@ export default function Rankings() {
       : player.player;
     return (
       <div className="px-1 py-0.5 min-w-0">
+        {/* Mobile: name only, short if available */}
         <a
           href={`https://statchasers.com/nfl/players/${toProfileSlug(player.player)}/`}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-[10px] md:text-sm leading-tight block whitespace-nowrap"
+          className="md:hidden font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-[10px] leading-tight block whitespace-nowrap"
         >
-          {/* Mobile: use short name if available; desktop: always full name */}
-          <span className="md:hidden">{displayName}</span>
-          <span className="hidden md:inline">{player.player}</span>
+          {displayName}
         </a>
-        {team && (
-          <span className="hidden md:block text-[10px] text-muted-foreground font-medium">{team}</span>
-        )}
+        {/* Desktop: name + team on same row */}
+        <a
+          href={`https://statchasers.com/nfl/players/${toProfileSlug(player.player)}/`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden md:flex items-baseline gap-1.5 font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-sm leading-tight whitespace-nowrap"
+        >
+          <span>{player.player}</span>
+          {team && (
+            <span className="text-xs font-medium text-muted-foreground">{team}</span>
+          )}
+        </a>
       </div>
     );
   }
