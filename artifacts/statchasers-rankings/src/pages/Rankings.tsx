@@ -92,6 +92,13 @@ export default function Rankings() {
     TE: 40,
   };
 
+  // Short display names for long names in the compact All view
+  const MOBILE_SHORT_NAMES: Record<string, string> = {
+    "TreVeyon Henderson":    "TreVeyon H.",
+    "Rhamondre Stevenson":   "Rhamondre S.",
+    "Jacory Croskey-Merritt":"Jacory C-M.",
+  };
+
   function toProfileSlug(name: string): string {
     return name
       .replace(/\s+(jr|sr|ii|iii|iv)\.?$/i, "")
@@ -179,9 +186,12 @@ export default function Rankings() {
   const isAll = filterPosition === "All";
   const isEmpty = isAll ? allViewData.length === 0 : filteredData.length === 0;
 
-  function PlayerCell({ player }: { player: Player | null }) {
+  function PlayerCell({ player, compact }: { player: Player | null; compact?: boolean }) {
     if (!player) return <div className="px-1 py-1" />;
     const team = teamMap[player.player.toLowerCase().trim()];
+    const displayName = compact && MOBILE_SHORT_NAMES[player.player]
+      ? MOBILE_SHORT_NAMES[player.player]
+      : player.player;
     return (
       <div className="px-1 py-0.5 min-w-0">
         <a
@@ -190,7 +200,9 @@ export default function Rankings() {
           rel="noopener noreferrer"
           className="font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-[10px] md:text-sm leading-tight block truncate"
         >
-          {player.player}
+          {/* Mobile: use short name if available; desktop: always full name */}
+          <span className="md:hidden">{displayName}</span>
+          <span className="hidden md:inline">{player.player}</span>
         </a>
         {team && (
           <span className="hidden md:block text-[10px] text-muted-foreground font-medium">{team}</span>
@@ -314,7 +326,7 @@ export default function Rankings() {
                     </td>
                     {(["QB", "RB", "WR", "TE"] as const).map((pos) => (
                       <td key={pos} className="py-0.5 overflow-hidden">
-                        <PlayerCell player={row[pos]} />
+                        <PlayerCell player={row[pos]} compact />
                       </td>
                     ))}
                   </tr>
