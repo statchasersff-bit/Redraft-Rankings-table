@@ -180,20 +180,20 @@ export default function Rankings() {
   const isEmpty = isAll ? allViewData.length === 0 : filteredData.length === 0;
 
   function PlayerCell({ player }: { player: Player | null }) {
-    if (!player) return <div className="px-2 py-1" />;
+    if (!player) return <div className="px-1 py-1" />;
     const team = teamMap[player.player.toLowerCase().trim()];
     return (
-      <div className="px-2 py-1 min-w-0">
+      <div className="px-1 py-0.5 min-w-0">
         <a
           href={`https://statchasers.com/nfl/players/${toProfileSlug(player.player)}/`}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-xs md:text-sm leading-tight block truncate"
+          className="font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-[10px] md:text-sm leading-tight block truncate"
         >
           {player.player}
         </a>
         {team && (
-          <span className="text-[10px] text-muted-foreground font-medium">{team}</span>
+          <span className="hidden md:block text-[10px] text-muted-foreground font-medium">{team}</span>
         )}
       </div>
     );
@@ -280,16 +280,20 @@ export default function Rankings() {
         ) : isAll ? (
           /* ── All-positions side-by-side view ── */
           <div
-            className="bg-white rounded-2xl border border-[#b0b8c8] overflow-x-auto"
+            className="bg-white rounded-2xl border border-[#b0b8c8] overflow-hidden"
             style={{ boxShadow: "0 4px 16px rgba(15, 23, 42, 0.12)" }}
           >
-            <table className="w-full min-w-[540px] border-collapse">
+            <table className="w-full border-collapse table-fixed">
+              <colgroup>
+                <col className="w-8 md:w-12" />
+                <col /><col /><col /><col />
+              </colgroup>
               <thead>
                 <tr style={{ background: "#0B1F3A" }}>
-                  {["Rank", "QB", "RB", "WR", "TE"].map((col) => (
+                  {["#", "QB", "RB", "WR", "TE"].map((col) => (
                     <th
                       key={col}
-                      className="text-white text-xs font-bold uppercase tracking-wider px-3 py-2 text-left first:text-center first:w-12"
+                      className="text-white text-[10px] md:text-xs font-bold uppercase tracking-wider px-1 md:px-3 py-2 text-center"
                     >
                       {col}
                     </th>
@@ -305,11 +309,11 @@ export default function Rankings() {
                       idx % 2 === 0 ? "bg-white" : "bg-[#fafbfc]"
                     )}
                   >
-                    <td className="text-center font-black text-sm md:text-base px-3 py-1.5" style={{ color: "#0B1F3A" }}>
+                    <td className="text-center font-black text-xs md:text-sm px-1 py-1" style={{ color: "#0B1F3A" }}>
                       {row.rank}
                     </td>
                     {(["QB", "RB", "WR", "TE"] as const).map((pos) => (
-                      <td key={pos} className="py-1">
+                      <td key={pos} className="py-0.5 overflow-hidden">
                         <PlayerCell player={row[pos]} />
                       </td>
                     ))}
