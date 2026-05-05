@@ -379,12 +379,12 @@ export default function Rankings() {
                     <div className="text-center font-black text-sm md:text-base" style={{ color: "#0B1F3A" }}>
                       {player.rank}
                     </div>
-                    <div className="px-2 flex items-baseline gap-2 min-w-0">
-                      <span className="font-bold text-foreground text-sm md:text-base truncate">
+                    <div className="px-2 flex items-baseline gap-2">
+                      <span className="font-bold text-foreground text-xs md:text-sm">
                         {player.player}
                       </span>
                       {teamMap[player.player.toLowerCase().trim()] && (
-                        <span className="text-xs font-medium text-muted-foreground shrink-0">
+                        <span className="text-[10px] md:text-xs font-medium text-muted-foreground shrink-0">
                           {teamMap[player.player.toLowerCase().trim()]}
                         </span>
                       )}
