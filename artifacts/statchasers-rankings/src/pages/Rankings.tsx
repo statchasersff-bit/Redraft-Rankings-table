@@ -112,6 +112,7 @@ export default function Rankings() {
 
   function toProfileSlug(name: string): string {
     return name
+      .replace(/\s+(jr|sr|ii|iii|iv)\.?$/i, "")  // strip Jr./Sr./II/III/IV suffixes
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, "")   // remove apostrophes, periods, etc.
       .trim()
