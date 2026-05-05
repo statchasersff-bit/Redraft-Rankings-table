@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import Papa from "papaparse";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Static rankings file served from /public.
@@ -108,6 +108,14 @@ export default function Rankings() {
       [40, 7],
     ],
   };
+
+  function toProfileSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")   // remove apostrophes, periods, etc.
+      .trim()
+      .replace(/\s+/g, "-");           // spaces → hyphens
+  }
 
   function getTier(position: string, rank: number): number {
     const rules = TIER_RULES[position];
@@ -240,12 +248,13 @@ export default function Rankings() {
           >
             {/* Table Column Headers */}
             <div
-              className="grid grid-cols-[3rem_3rem_1fr] md:grid-cols-[4.5rem_4.5rem_1fr] text-white text-xs font-bold uppercase tracking-wider px-4 py-2"
+              className="grid grid-cols-[3rem_3rem_1fr_auto] md:grid-cols-[4.5rem_4.5rem_1fr_auto] text-white text-xs font-bold uppercase tracking-wider px-4 py-2"
               style={{ background: "#0B1F3A" }}
             >
               <div className="text-center">Tier</div>
               <div className="text-center">Rank</div>
               <div className="px-2">Player</div>
+              <div className="pr-1" />
             </div>
 
             {/* Tier Groups */}
@@ -265,7 +274,7 @@ export default function Rankings() {
                     key={`${player.player}-${player.rank}`}
                     data-testid={`row-player-${player.rank}`}
                     className={cn(
-                      "grid grid-cols-[3rem_3rem_1fr] md:grid-cols-[4.5rem_4.5rem_1fr] items-center px-4 py-1.5 border-t border-border transition-colors duration-100 hover:bg-[#f8fafc]",
+                      "grid grid-cols-[3rem_3rem_1fr_auto] md:grid-cols-[4.5rem_4.5rem_1fr_auto] items-center px-4 py-1.5 border-t border-border transition-colors duration-100 hover:bg-[#f8fafc]",
                       idx % 2 === 0 ? "bg-white" : "bg-[#fafbfc]"
                     )}
                   >
@@ -284,6 +293,17 @@ export default function Rankings() {
                           {teamMap[player.player.toLowerCase().trim()]}
                         </span>
                       )}
+                    </div>
+                    <div className="pl-2 flex items-center">
+                      <a
+                        href={`https://statchasers.com/nfl/players/${toProfileSlug(player.player)}/`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md border border-[#0B1F3A] text-[#0B1F3A] hover:bg-[#0B1F3A] hover:text-white transition-colors duration-150 whitespace-nowrap"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        <span className="hidden md:inline">View Profile</span>
+                      </a>
                     </div>
                   </div>
                 ))}
