@@ -138,7 +138,7 @@ export default function Rankings() {
 
       {/* Sticky Filter Bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-border shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 md:px-8 py-3 flex flex-col md:flex-row gap-3 items-center justify-between">
+        <div className="w-full px-4 md:px-6 py-3 flex flex-col md:flex-row gap-3 items-center justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-foreground uppercase tracking-wider hidden md:inline-block">
               POS
@@ -188,7 +188,7 @@ export default function Rankings() {
       </div>
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-4 md:px-8 py-8">
+      <main className="w-full px-4 md:px-6 py-6">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24">
             <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
