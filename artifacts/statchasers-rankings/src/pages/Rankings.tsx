@@ -95,7 +95,7 @@ export default function Rankings() {
       [12, 2],
       [19, 3],
       [26, 4],
-      [35, 5],
+      [36, 5],
       [70, 6],
     ],
     RB: [
