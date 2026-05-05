@@ -1,10 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import Papa from "papaparse";
-import { Loader2, AlertCircle, ExternalLink } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Static rankings file served from /public.
-// Swap this for a Google Sheet CSV URL when ready.
 const SHEET_URL = "/rankings.csv";
 
 interface Player {
@@ -12,7 +10,15 @@ interface Player {
   rank: number;
   player: string;
   position: string;
-  scoring?: string; // optional — if absent, player shows under every scoring tab
+  scoring?: string;
+}
+
+interface AllRow {
+  rank: number;
+  QB: Player | null;
+  RB: Player | null;
+  WR: Player | null;
+  TE: Player | null;
 }
 
 export default function Rankings() {
@@ -24,11 +30,9 @@ export default function Rankings() {
   const [filterPosition, setFilterPosition] = useState<string>("QB");
   const [filterScoring, setFilterScoring] = useState<string>("PPR");
 
-  // Load rankings CSV
   useEffect(() => {
     setLoading(true);
     setError(null);
-
     Papa.parse(SHEET_URL, {
       download: true,
       header: true,
@@ -37,7 +41,6 @@ export default function Rankings() {
         const rows = (results.data as any[])
           .filter((row) => row.Player || row.player)
           .map((row) => ({
-            // Support both old (lowercase) and new (title-case / "Final Rank") column names
             tier: Number(row.tier ?? row.Tier) || 1,
             rank: Number(row["Final Rank"] ?? row["final rank"] ?? row.rank ?? row.Rank) || 0,
             player: String(row.Player ?? row.player ?? "").trim(),
@@ -54,69 +57,48 @@ export default function Rankings() {
     });
   }, []);
 
-  // Fetch player → team lookup from Sleeper's public API (no auth required)
   useEffect(() => {
     fetch("https://api.sleeper.app/v1/players/nfl")
       .then((r) => r.json())
       .then((players: Record<string, { full_name?: string; team?: string | null }>) => {
         const map: Record<string, string> = {};
         Object.values(players).forEach((p) => {
-          if (p.full_name && p.team) {
-            map[p.full_name.toLowerCase().trim()] = p.team;
-          }
+          if (p.full_name && p.team) map[p.full_name.toLowerCase().trim()] = p.team;
         });
         setTeamMap(map);
       })
-      .catch(() => {
-        // Silently fail — team labels are decorative, not critical
-      });
+      .catch(() => {});
   }, []);
 
-  // Tier breakpoints per position: [maxRank, tierNumber][]
-  // The first range whose maxRank >= player.rank wins.
   const TIER_RULES: Record<string, [number, number][]> = {
     QB: [
-      [6,  1],
-      [16, 2],
-      [24, 3],
-      [33, 4],
-      [40, 5],
+      [6,  1], [16, 2], [24, 3], [33, 4], [40, 5],
     ],
     TE: [
-      [2,  1],
-      [8,  2],
-      [13, 3],
-      [21, 4],
-      [29, 5],
-      [40, 6],
+      [2,  1], [8,  2], [13, 3], [21, 4], [29, 5], [40, 6],
     ],
     WR: [
-      [4,  1],
-      [12, 2],
-      [19, 3],
-      [26, 4],
-      [36, 5],
-      [48, 6],
-      [70, 7],
+      [4,  1], [12, 2], [19, 3], [26, 4], [36, 5], [48, 6], [70, 7],
     ],
     RB: [
-      [4,  1],
-      [10, 2],
-      [17, 3],
-      [22, 4],
-      [28, 5],
-      [34, 6],
-      [40, 7],
+      [4,  1], [10, 2], [17, 3], [22, 4], [28, 5], [34, 6], [40, 7],
     ],
+  };
+
+  const POSITION_LIMITS: Record<string, number> = {
+    QB: 35,
+    RB: 40,
+    WR: 70,
+    TE: 40,
   };
 
   function toProfileSlug(name: string): string {
     return name
-      .replace(/\s+(jr|sr|ii|iii|iv)\.?$/i, "")  // strip Jr./Sr./II/III/IV suffixes
+      .replace(/\s+(jr|sr|ii|iii|iv)\.?$/i, "")
       .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")   // remove apostrophes, periods, etc.
+      .replace(/[^a-z0-9\s-]/g, "")
       .trim()
-      .replace(/\s+/g, "-");           // spaces → hyphens
+      .replace(/\s+/g, "-");
   }
 
   function getTier(position: string, rank: number): number {
@@ -128,14 +110,9 @@ export default function Rankings() {
     return rules[rules.length - 1][1];
   }
 
-  const POSITION_LIMITS: Record<string, number> = {
-    QB: 35,
-    RB: 40,
-    WR: 70,
-    TE: 40,
-  };
-
+  // Single-position filtered + tiered data
   const filteredData = useMemo(() => {
+    if (filterPosition === "All") return [];
     const limit = POSITION_LIMITS[filterPosition] ?? Infinity;
     return data
       .filter(
@@ -160,7 +137,31 @@ export default function Rankings() {
       .map((tier) => ({ tier, players: groups[tier] }));
   }, [filteredData]);
 
-  // Re-report height to parent iframe host whenever content changes
+  // All-positions side-by-side data
+  const allViewData = useMemo<AllRow[]>(() => {
+    if (filterPosition !== "All") return [];
+    const byPos: Record<string, Player[]> = { QB: [], RB: [], WR: [], TE: [] };
+    data.forEach((p) => {
+      if (byPos[p.position] && (!p.scoring || p.scoring === filterScoring)) {
+        byPos[p.position].push(p);
+      }
+    });
+    (["QB", "RB", "WR", "TE"] as const).forEach((pos) => {
+      byPos[pos] = byPos[pos]
+        .sort((a, b) => a.rank - b.rank)
+        .slice(0, POSITION_LIMITS[pos] ?? Infinity);
+    });
+    const maxRows = Math.max(...Object.values(byPos).map((arr) => arr.length));
+    return Array.from({ length: maxRows }, (_, i) => ({
+      rank: i + 1,
+      QB: byPos.QB[i] ?? null,
+      RB: byPos.RB[i] ?? null,
+      WR: byPos.WR[i] ?? null,
+      TE: byPos.TE[i] ?? null,
+    }));
+  }, [data, filterPosition, filterScoring]);
+
+  // Report height to parent iframe on content change
   useEffect(() => {
     if (window.self === window.top) return;
     const timer = setTimeout(() => {
@@ -170,10 +171,33 @@ export default function Rankings() {
       );
     }, 50);
     return () => clearTimeout(timer);
-  }, [filteredData]);
+  }, [filteredData, allViewData]);
 
-  const positions = ["QB", "RB", "WR", "TE"];
+  const positions = ["All", "QB", "RB", "WR", "TE"];
   const scoringFormats = ["Standard", "Half PPR", "PPR"];
+
+  const isAll = filterPosition === "All";
+  const isEmpty = isAll ? allViewData.length === 0 : filteredData.length === 0;
+
+  function PlayerCell({ player }: { player: Player | null }) {
+    if (!player) return <div className="px-2 py-1" />;
+    const team = teamMap[player.player.toLowerCase().trim()];
+    return (
+      <div className="px-2 py-1 min-w-0">
+        <a
+          href={`https://statchasers.com/nfl/players/${toProfileSlug(player.player)}/`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-xs md:text-sm leading-tight block truncate"
+        >
+          {player.player}
+        </a>
+        {team && (
+          <span className="text-[10px] text-muted-foreground font-medium">{team}</span>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white font-sans">
@@ -248,19 +272,59 @@ export default function Rankings() {
             <h3 className="text-foreground font-semibold mb-2">Failed to load data</h3>
             <p className="text-sm text-muted-foreground break-all">{error}</p>
           </div>
-        ) : filteredData.length === 0 ? (
+        ) : isEmpty ? (
           <div className="bg-white rounded-2xl p-12 text-center border border-border shadow-sm">
             <p className="text-foreground font-semibold text-lg">No players match these filters.</p>
-            <p className="text-muted-foreground text-sm mt-2">
-              Try a different position or scoring format.
-            </p>
           </div>
+
+        ) : isAll ? (
+          /* ── All-positions side-by-side view ── */
+          <div
+            className="bg-white rounded-2xl border border-[#b0b8c8] overflow-x-auto"
+            style={{ boxShadow: "0 4px 16px rgba(15, 23, 42, 0.12)" }}
+          >
+            <table className="w-full min-w-[540px] border-collapse">
+              <thead>
+                <tr style={{ background: "#0B1F3A" }}>
+                  {["Rank", "QB", "RB", "WR", "TE"].map((col) => (
+                    <th
+                      key={col}
+                      className="text-white text-xs font-bold uppercase tracking-wider px-3 py-2 text-left first:text-center first:w-12"
+                    >
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {allViewData.map((row, idx) => (
+                  <tr
+                    key={row.rank}
+                    className={cn(
+                      "border-t border-border transition-colors duration-100 hover:bg-[#f8fafc]",
+                      idx % 2 === 0 ? "bg-white" : "bg-[#fafbfc]"
+                    )}
+                  >
+                    <td className="text-center font-black text-sm md:text-base px-3 py-1.5" style={{ color: "#0B1F3A" }}>
+                      {row.rank}
+                    </td>
+                    {(["QB", "RB", "WR", "TE"] as const).map((pos) => (
+                      <td key={pos} className="py-1">
+                        <PlayerCell player={row[pos]} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
         ) : (
+          /* ── Single-position tiered view ── */
           <div
             className="bg-white rounded-2xl border border-[#b0b8c8] overflow-hidden"
             style={{ boxShadow: "0 4px 16px rgba(15, 23, 42, 0.12)" }}
           >
-            {/* Table Column Headers */}
             <div
               className="grid grid-cols-[3rem_3rem_1fr_auto] md:grid-cols-[4.5rem_4.5rem_1fr_auto] text-white text-xs font-bold uppercase tracking-wider px-4 py-2"
               style={{ background: "#0B1F3A" }}
@@ -271,10 +335,8 @@ export default function Rankings() {
               <div className="pr-1" />
             </div>
 
-            {/* Tier Groups */}
             {groupedByTier.map((group) => (
               <div key={`tier-${group.tier}`}>
-                {/* Tier Header */}
                 <div
                   className="text-white font-black text-xs tracking-widest uppercase px-4 py-1"
                   style={{ background: "linear-gradient(90deg, #0B1F3A 0%, #132A4A 100%)" }}
@@ -282,7 +344,6 @@ export default function Rankings() {
                   Tier {group.tier}
                 </div>
 
-                {/* Player Rows */}
                 {group.players.map((player, idx) => (
                   <div
                     key={`${player.player}-${player.rank}`}
@@ -315,7 +376,6 @@ export default function Rankings() {
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md border border-[#0B1F3A] text-[#0B1F3A] hover:bg-[#0B1F3A] hover:text-white transition-colors duration-150 whitespace-nowrap"
                       >
-                        <ExternalLink className="h-3 w-3" />
                         <span className="hidden md:inline">View Profile</span>
                       </a>
                     </div>
