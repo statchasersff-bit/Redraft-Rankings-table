@@ -18,6 +18,7 @@ export default function Rankings() {
   const [data, setData] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [teamMap, setTeamMap] = useState<Record<string, string>>({});
 
   const [filterPosition, setFilterPosition] = useState<string>("QB");
   const [filterScoring, setFilterScoring] = useState<string>("PPR");
@@ -87,6 +88,24 @@ export default function Rankings() {
     }
 
     fetchData();
+  }, []);
+
+  // Fetch player→team lookup from Sleeper's public API (no auth required)
+  useEffect(() => {
+    fetch("https://api.sleeper.app/v1/players/nfl")
+      .then((r) => r.json())
+      .then((players: Record<string, { full_name?: string; team?: string | null }>) => {
+        const map: Record<string, string> = {};
+        Object.values(players).forEach((p) => {
+          if (p.full_name && p.team) {
+            map[p.full_name.toLowerCase().trim()] = p.team;
+          }
+        });
+        setTeamMap(map);
+      })
+      .catch(() => {
+        // Silently fail — team labels are decorative, not critical
+      });
   }, []);
 
   const filteredData = useMemo(() => {
@@ -242,8 +261,15 @@ export default function Rankings() {
                     <div className="text-center font-black text-sm md:text-base" style={{ color: "#0B1F3A" }}>
                       {player.rank}
                     </div>
-                    <div className="px-2 font-bold text-foreground text-sm md:text-base truncate">
-                      {player.player}
+                    <div className="px-2 flex items-baseline gap-2 min-w-0">
+                      <span className="font-bold text-foreground text-sm md:text-base truncate">
+                        {player.player}
+                      </span>
+                      {teamMap[player.player.toLowerCase().trim()] && (
+                        <span className="text-xs font-medium text-muted-foreground shrink-0">
+                          {teamMap[player.player.toLowerCase().trim()]}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
