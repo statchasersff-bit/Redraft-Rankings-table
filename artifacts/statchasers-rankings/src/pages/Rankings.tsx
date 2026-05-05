@@ -103,10 +103,8 @@ export default function Rankings() {
 
   // Player-specific tier overrides (name must match CSV exactly)
   const PLAYER_TIER_OVERRIDES: Record<string, number> = {
-    "Kyle Pitts": 7,
     "Kyle Pitts Sr.": 7,
     "Harold Fannin Jr.": 5,
-    "Harold Fannin": 5,
   };
 
   function getTier(position: string, rank: number, playerName: string): number {
