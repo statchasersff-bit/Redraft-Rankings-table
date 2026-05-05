@@ -1,0 +1,150 @@
+Yeah this is close — but right now it still feels a bit “generic dark app” instead of StatChasers premium tool.
+
+If you want white background + strong brand identity, here’s exactly how I’d refine it:
+
+🎯 Core Direction Shift
+
+Instead of:
+
+dark page with light table
+
+Go:
+
+white page + dark/gold accents (like a premium dashboard)
+
+🎨 Color System (StatChasers Identity)
+
+Use this consistently:
+
+--sc-blue: #0B1F3A;     /* deep navy */
+--sc-blue-2: #132A4A;   /* lighter navy */
+--sc-gold: #F4C430;     /* primary gold */
+--sc-gold-soft: #f7d774;
+--sc-gray: #f5f7fa;     /* page background */
+--sc-border: #e5e7eb;
+--sc-text: #0f172a;
+🧱 Page Background (IMPORTANT)
+
+Change this immediately:
+
+body {
+  background: #ffffff;
+  color: var(--sc-text);
+}
+
+Optional slight contrast section:
+
+.main-container {
+  background: var(--sc-gray);
+  padding: 30px 0;
+}
+🧠 Header Fix (Big Upgrade)
+
+Right now header feels flat. Do this:
+
+.header {
+  background: white;
+  border-bottom: 2px solid var(--sc-border);
+  text-align: center;
+  padding: 30px 0 20px;
+}
+
+.header h1 {
+  color: var(--sc-blue);
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.header span {
+  color: var(--sc-gold);
+}
+
+👉 Pro move:
+Make “STATCHASERS” blue and underline/accent gold.
+
+🎛 Filters (Make These POP)
+
+Right now they're decent, but we want:
+
+Inactive buttons:
+.filter-btn {
+  background: #f1f5f9;
+  color: #475569;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+Active (IMPORTANT):
+.filter-btn.active {
+  background: var(--sc-gold);
+  color: var(--sc-blue);
+  border: 1px solid var(--sc-gold);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+Section labels:
+.filter-label {
+  color: var(--sc-blue);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+📊 Table Container (Major Upgrade)
+
+Instead of dark box → go clean white card:
+
+.table-container {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--sc-border);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+🧾 Table Header
+.table-header {
+  background: var(--sc-blue);
+  color: white;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+🏆 Tier Rows (THIS is where branding wins)
+
+Instead of gray bar → make tiers feel premium:
+
+.tier-row {
+  background: linear-gradient(90deg, var(--sc-blue), var(--sc-blue-2));
+  color: white;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 10px 16px;
+}
+👤 Player Rows
+.player-row {
+  background: white;
+  border-top: 1px solid var(--sc-border);
+  transition: all 0.15s ease;
+}
+
+.player-row:hover {
+  background: #f8fafc;
+}
+🔢 Rank Styling (small but powerful)
+.rank {
+  font-weight: 800;
+  color: var(--sc-blue);
+}
+
+.player-name {
+  font-weight: 700;
+}
+💎 Extra Polish (optional but 🔥)
+Gold accent line under header:
+.header::after {
+  content: "";
+  display: block;
+  width: 60px;
+  height: 4px;
+  background: var(--sc-gold);
+  margin: 12px auto 0;
+  border-radius: 999px;
+}
