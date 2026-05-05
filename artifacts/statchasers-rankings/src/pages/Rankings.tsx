@@ -18,7 +18,7 @@ export default function Rankings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [filterPosition, setFilterPosition] = useState<string>("All");
+  const [filterPosition, setFilterPosition] = useState<string>("QB");
   const [filterScoring, setFilterScoring] = useState<string>("PPR");
 
   useEffect(() => {
@@ -101,7 +101,7 @@ export default function Rankings() {
       }));
   }, [filteredData]);
 
-  const positions = ["All", "QB", "RB", "WR", "TE"];
+  const positions = ["QB", "RB", "WR", "TE"];
   const scoringFormats = ["Standard", "Half PPR", "PPR"];
 
   return (
