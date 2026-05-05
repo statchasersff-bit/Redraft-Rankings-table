@@ -1,0 +1,57 @@
+2026-05-05T17:00:18.406453Z	Cloning repository...
+2026-05-05T17:00:19.467982Z	From https://github.com/statchasersff-bit/Redraft-Rankings-table
+2026-05-05T17:00:19.468367Z	 * branch            a5ab548c4fce6b27dac1262098b53b231cbdba9c -> FETCH_HEAD
+2026-05-05T17:00:19.46848Z	
+2026-05-05T17:00:19.498854Z	HEAD is now at a5ab548 Update player profile links to remove suffixes from names
+2026-05-05T17:00:19.499215Z	
+2026-05-05T17:00:19.5499Z	
+2026-05-05T17:00:19.550271Z	Using v2 root directory strategy
+2026-05-05T17:00:19.564496Z	Success: Finished cloning repository files
+2026-05-05T17:00:21.434816Z	Checking for configuration in a Wrangler configuration file (BETA)
+2026-05-05T17:00:21.435336Z	
+2026-05-05T17:00:22.537166Z	No Wrangler configuration file found. Continuing.
+2026-05-05T17:00:22.976534Z	Detected the following tools from environment: pnpm@10.11.1, nodejs@22.16.0
+2026-05-05T17:00:24.139997Z	Installing project dependencies: pnpm install
+2026-05-05T17:00:24.741171Z	Scope: all 9 workspace projects
+2026-05-05T17:00:24.830695Z	Lockfile is up to date, resolution step is skipped
+2026-05-05T17:00:24.861059Z	Progress: resolved 1, reused 0, downloaded 0, added 0
+2026-05-05T17:00:25.154949Z	Packages: +488
+2026-05-05T17:00:25.155311Z	++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+2026-05-05T17:00:25.86169Z	Progress: resolved 488, reused 0, downloaded 126, added 65
+2026-05-05T17:00:26.864852Z	Progress: resolved 488, reused 0, downloaded 290, added 269
+2026-05-05T17:00:27.863285Z	Progress: resolved 488, reused 0, downloaded 310, added 277
+2026-05-05T17:00:28.862961Z	Progress: resolved 488, reused 0, downloaded 463, added 341
+2026-05-05T17:00:29.108182Z	Progress: resolved 488, reused 0, downloaded 488, added 488, done
+2026-05-05T17:00:29.328453Z	.../esbuild@0.27.3/node_modules/esbuild postinstall$ node install.js
+2026-05-05T17:00:29.432926Z	.../esbuild@0.27.3/node_modules/esbuild postinstall: Done
+2026-05-05T17:00:29.973734Z	
+2026-05-05T17:00:29.974139Z	devDependencies:
+2026-05-05T17:00:29.9743Z	+ prettier 3.8.1
+2026-05-05T17:00:29.974384Z	+ typescript 5.9.3
+2026-05-05T17:00:29.974455Z	
+2026-05-05T17:00:30.072482Z	. preinstall$ sh -c 'rm -f package-lock.json yarn.lock; case "$npm_config_user_agent" in pnpm/*) ;; *) echo "Use pnpm instead" >&2; exit 1 ;; esac'
+2026-05-05T17:00:30.096883Z	. preinstall: Done
+2026-05-05T17:00:30.301586Z	Done in 5.9s using pnpm v10.11.1
+2026-05-05T17:00:30.359049Z	Executing user command: pnpm --filter @workspace/statchasers-rankings run build
+2026-05-05T17:00:30.911048Z	
+2026-05-05T17:00:30.911336Z	> @workspace/statchasers-rankings@0.0.0 build /opt/buildhome/repo/artifacts/statchasers-rankings
+2026-05-05T17:00:30.911402Z	> vite build --config vite.config.ts
+2026-05-05T17:00:30.91145Z	
+2026-05-05T17:00:31.543291Z	[31mfailed to load config from /opt/buildhome/repo/artifacts/statchasers-rankings/vite.config.ts[39m
+2026-05-05T17:00:31.544256Z	[31merror during build:
+2026-05-05T17:00:31.544458Z	Error: PORT environment variable is required but was not provided.
+2026-05-05T17:00:31.544526Z	    at file:///opt/buildhome/repo/artifacts/statchasers-rankings/node_modules/.vite-temp/vite.config.ts.timestamp-1778000431321-ab2a5d2fafacd.mjs:10:9
+2026-05-05T17:00:31.544643Z	    at ModuleJob.run (node:internal/modules/esm/module_job:274:25)
+2026-05-05T17:00:31.544746Z	    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)
+2026-05-05T17:00:31.544826Z	    at async loadConfigFromBundledFile (file:///opt/buildhome/repo/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35920:12)
+2026-05-05T17:00:31.544904Z	    at async bundleAndLoadConfigFile (file:///opt/buildhome/repo/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35808:17)
+2026-05-05T17:00:31.544966Z	    at async loadConfigFromFile (file:///opt/buildhome/repo/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35775:42)
+2026-05-05T17:00:31.545022Z	    at async resolveConfig (file:///opt/buildhome/repo/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:35424:22)
+2026-05-05T17:00:31.545069Z	    at async createBuilder (file:///opt/buildhome/repo/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/chunks/config.js:33879:19)
+2026-05-05T17:00:31.545126Z	    at async CAC.<anonymous> (file:///opt/buildhome/repo/node_modules/.pnpm/vite@7.3.2_@types+node@25.3.5_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0_yaml@2.8.2/node_modules/vite/dist/node/cli.js:629:10)[39m
+2026-05-05T17:00:31.584569Z	/opt/buildhome/repo/artifacts/statchasers-rankings:
+2026-05-05T17:00:31.585058Z	 ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/statchasers-rankings@0.0.0 build: `vite build --config vite.config.ts`
+2026-05-05T17:00:31.585182Z	Exit status 1
+2026-05-05T17:00:31.624085Z	Failed: Error while executing user command. Exited with error code: 1
+2026-05-05T17:00:31.631501Z	Failed: build command exited with code: 1
+2026-05-05T17:00:32.346976Z	Failed: error occurred while running build command
