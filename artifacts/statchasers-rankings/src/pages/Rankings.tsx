@@ -72,6 +72,29 @@ export default function Rankings() {
       });
   }, []);
 
+  // Tier breakpoints per position: [maxRank, tierNumber][]
+  // The first range whose maxRank >= player.rank wins.
+  const TIER_RULES: Record<string, [number, number][]> = {
+    RB: [
+      [4,  1],
+      [10, 2],
+      [17, 3],
+      [22, 4],
+      [28, 5],
+      [34, 6],
+      [40, 7],
+    ],
+  };
+
+  function getTier(position: string, rank: number): number {
+    const rules = TIER_RULES[position];
+    if (!rules) return 1;
+    for (const [maxRank, tier] of rules) {
+      if (rank <= maxRank) return tier;
+    }
+    return rules[rules.length - 1][1];
+  }
+
   const POSITION_LIMITS: Record<string, number> = {
     QB: 35,
     RB: 40,
@@ -88,7 +111,8 @@ export default function Rankings() {
           p.position === filterPosition
       )
       .sort((a, b) => a.rank - b.rank)
-      .slice(0, limit);
+      .slice(0, limit)
+      .map((p) => ({ ...p, tier: getTier(p.position, p.rank) }));
   }, [data, filterPosition, filterScoring]);
 
   const groupedByTier = useMemo(() => {
