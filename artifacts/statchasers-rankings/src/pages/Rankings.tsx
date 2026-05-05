@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import Papa from "papaparse";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SHEET_URL = "/rankings.csv";
@@ -388,6 +388,7 @@ export default function Rankings() {
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-md border border-[#0B1F3A] text-[#0B1F3A] hover:bg-[#0B1F3A] hover:text-white transition-colors duration-150 whitespace-nowrap"
                       >
+                        <ExternalLink className="h-3 w-3 shrink-0" />
                         <span className="hidden md:inline">View Profile</span>
                       </a>
                     </div>
