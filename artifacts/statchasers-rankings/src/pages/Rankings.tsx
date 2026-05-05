@@ -134,7 +134,7 @@ export default function Rankings() {
   const scoringFormats = ["Standard", "Half PPR", "PPR"];
 
   return (
-    <div className="min-h-[100dvh] bg-muted font-sans">
+    <div className="min-h-[100dvh] bg-white font-sans">
 
       {/* Sticky Filter Bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-border shadow-sm">
