@@ -214,7 +214,7 @@ export default function Rankings() {
           >
             {/* Table Column Headers */}
             <div
-              className="grid grid-cols-[3rem_3rem_1fr] md:grid-cols-[4.5rem_4.5rem_1fr] text-white text-xs font-bold uppercase tracking-wider px-4 py-3"
+              className="grid grid-cols-[3rem_3rem_1fr] md:grid-cols-[4.5rem_4.5rem_1fr] text-white text-xs font-bold uppercase tracking-wider px-4 py-2"
               style={{ background: "#0B1F3A" }}
             >
               <div className="text-center">Tier</div>
@@ -227,7 +227,7 @@ export default function Rankings() {
               <div key={`tier-${group.tier}`}>
                 {/* Tier Header */}
                 <div
-                  className="text-white font-black text-xs tracking-widest uppercase px-4 py-2"
+                  className="text-white font-black text-xs tracking-widest uppercase px-4 py-1"
                   style={{ background: "linear-gradient(90deg, #0B1F3A 0%, #132A4A 100%)" }}
                 >
                   Tier {group.tier}
@@ -239,7 +239,7 @@ export default function Rankings() {
                     key={`${player.player}-${player.rank}`}
                     data-testid={`row-player-${player.rank}`}
                     className={cn(
-                      "grid grid-cols-[3rem_3rem_1fr] md:grid-cols-[4.5rem_4.5rem_1fr] items-center px-4 py-3 border-t border-border transition-colors duration-100 hover:bg-[#f8fafc]",
+                      "grid grid-cols-[3rem_3rem_1fr] md:grid-cols-[4.5rem_4.5rem_1fr] items-center px-4 py-1.5 border-t border-border transition-colors duration-100 hover:bg-[#f8fafc]",
                       idx % 2 === 0 ? "bg-white" : "bg-[#fafbfc]"
                     )}
                   >
