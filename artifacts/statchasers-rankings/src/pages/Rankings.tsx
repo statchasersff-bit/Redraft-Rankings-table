@@ -198,7 +198,7 @@ export default function Rankings() {
           href={`https://statchasers.com/nfl/players/${toProfileSlug(player.player)}/`}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-[10px] md:text-sm leading-tight block break-words"
+          className="font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-[10px] md:text-sm leading-tight block whitespace-nowrap"
         >
           {/* Mobile: use short name if available; desktop: always full name */}
           <span className="md:hidden">{displayName}</span>
@@ -292,14 +292,10 @@ export default function Rankings() {
         ) : isAll ? (
           /* ── All-positions side-by-side view ── */
           <div
-            className="bg-white rounded-2xl border border-[#b0b8c8] overflow-hidden"
+            className="bg-white rounded-2xl border border-[#b0b8c8] overflow-x-auto"
             style={{ boxShadow: "0 4px 16px rgba(15, 23, 42, 0.12)" }}
           >
-            <table className="w-full border-collapse table-fixed">
-              <colgroup>
-                <col className="w-8 md:w-12" />
-                <col /><col /><col /><col />
-              </colgroup>
+            <table className="border-collapse" style={{ minWidth: "480px", width: "100%" }}>
               <thead>
                 <tr style={{ background: "#0B1F3A" }}>
                   {["#", "QB", "RB", "WR", "TE"].map((col) => (
