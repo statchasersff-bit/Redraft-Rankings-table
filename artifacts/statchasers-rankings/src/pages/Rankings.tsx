@@ -75,6 +75,13 @@ export default function Rankings() {
   // Tier breakpoints per position: [maxRank, tierNumber][]
   // The first range whose maxRank >= player.rank wins.
   const TIER_RULES: Record<string, [number, number][]> = {
+    QB: [
+      [6,  1],
+      [16, 2],
+      [24, 3],
+      [33, 4],
+      [40, 5],
+    ],
     RB: [
       [4,  1],
       [10, 2],
