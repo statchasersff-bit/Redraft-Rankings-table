@@ -209,8 +209,8 @@ export default function Rankings() {
           </div>
         ) : (
           <div
-            className="bg-white rounded-2xl border border-border overflow-hidden"
-            style={{ boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)" }}
+            className="bg-white rounded-2xl border border-[#b0b8c8] overflow-hidden"
+            style={{ boxShadow: "0 4px 16px rgba(15, 23, 42, 0.12)" }}
           >
             {/* Table Column Headers */}
             <div
