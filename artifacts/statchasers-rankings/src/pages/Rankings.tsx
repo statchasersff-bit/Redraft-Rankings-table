@@ -198,7 +198,7 @@ export default function Rankings() {
           href={`https://statchasers.com/nfl/players/${toProfileSlug(player.player)}/`}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-[10px] md:text-sm leading-tight block truncate"
+          className="font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-[10px] md:text-sm leading-tight block break-words"
         >
           {/* Mobile: use short name if available; desktop: always full name */}
           <span className="md:hidden">{displayName}</span>
