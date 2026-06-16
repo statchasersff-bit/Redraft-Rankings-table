@@ -75,20 +75,20 @@ export default function Rankings() {
       [6,  1], [16, 2], [24, 3], [33, 4], [40, 5],
     ],
     TE: [
-      [2,  1], [8,  2], [13, 3], [21, 4], [29, 5], [40, 6],
+      [3,  1], [8,  2], [13, 3], [21, 4], [29, 5], [39, 6],
     ],
     WR: [
-      [4,  1], [12, 2], [19, 3], [26, 4], [36, 5], [48, 6], [70, 7],
+      [4,  1], [13, 2], [19, 3], [27, 4], [35, 5], [48, 6], [64, 7], [100, 8],
     ],
     RB: [
-      [4,  1], [10, 2], [17, 3], [22, 4], [28, 5], [34, 6], [40, 7],
+      [4,  1], [10, 2], [16, 3], [22, 4], [28, 5], [36, 6], [50, 7],
     ],
   };
 
   const POSITION_LIMITS: Record<string, number> = {
-    QB: 35,
-    RB: 40,
-    WR: 70,
+    QB: 40,
+    RB: 50,
+    WR: 100,
     TE: 40,
   };
 
@@ -222,8 +222,13 @@ export default function Rankings() {
   return (
     <div className="bg-white font-sans">
 
+      {/* Last Updated */}
+      <div className="w-full px-4 md:px-6 pt-3 text-xs text-muted-foreground">
+        Last updated: June 15, 2026 4:52pm ET
+      </div>
+
       {/* Sticky Filter Bar */}
-      <div className="sticky top-0 z-10 bg-white border-b border-border shadow-sm">
+      <div className="bg-white border-b border-border shadow-sm">
         <div className="w-full px-4 md:px-6 py-3 flex flex-col md:flex-row gap-3 items-center justify-between">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-foreground uppercase tracking-wider hidden md:inline-block">
