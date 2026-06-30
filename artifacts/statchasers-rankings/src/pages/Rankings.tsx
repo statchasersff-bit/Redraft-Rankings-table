@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import Papa from "papaparse";
 import { Loader2, AlertCircle, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ export default function Rankings() {
 
   const [filterPosition, setFilterPosition] = useState<string>("QB");
   const [filterScoring, setFilterScoring] = useState<string>("PPR");
+  const [showAllRows, setShowAllRows] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -63,7 +64,7 @@ export default function Rankings() {
       .then((players: Record<string, { full_name?: string; team?: string | null }>) => {
         const map: Record<string, string> = {};
         Object.values(players).forEach((p) => {
-          if (p.full_name && p.team) map[p.full_name.toLowerCase().trim()] = p.team;
+          if (p.full_name && p.team) map[normalizeName(p.full_name)] = p.team;
         });
         setTeamMap(map);
       })
@@ -92,12 +93,46 @@ export default function Rankings() {
     TE: 40,
   };
 
+  // Subtle per-tier cell backgrounds for the All view (distinct hue per tier)
+  const TIER_COLORS: Record<number, string> = {
+    1: "hsl(45, 80%, 95%)",     // gold
+    2: "hsl(140, 45%, 95%)",    // green
+    3: "hsl(200, 55%, 95.5%)",  // blue
+    4: "hsl(265, 42%, 95.5%)",  // purple
+    5: "hsl(330, 50%, 95.5%)",  // pink
+    6: "hsl(20, 65%, 95.5%)",   // orange
+    7: "hsl(180, 35%, 95.5%)",  // teal
+    8: "hsl(0, 0%, 95.5%)",     // gray
+  };
+
+  function tierColor(position: string, rank: number): string | undefined {
+    return TIER_COLORS[getTier(position, rank)];
+  }
+
   // Short display names for long names in the compact All view
   const MOBILE_SHORT_NAMES: Record<string, string> = {
-    "TreVeyon Henderson":    "TreVeyon H.",
-    "Rhamondre Stevenson":   "Rhamondre S.",
+    "TreVeyon Henderson":    "T. Henderson",
+    "Rhamondre Stevenson":   "R. Stevenson",
     "Jacory Croskey-Merritt":"Jacory C-M.",
+    "Fernando Mendoza":      "F. Mendoza",
+    "Christian McCaffrey":   "C. McCaffrey",
+    "Omarion Hampton":       "O. Hampton",
+    "Quinshon Judkins":      "Q. Judkins",
+    "David Montgomery":      "D. Montgomery",
+    "Darnell Washington":    "D. Washington",
+    "Terrance Ferguson":     "T. Ferguson",
   };
+
+  // Normalize names for matching against the Sleeper team map: strip suffixes
+  // (Jr./Sr./II–V) and punctuation so "Michael Pittman Jr." matches "Michael Pittman".
+  function normalizeName(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/\s+(jr|sr|ii|iii|iv|v)\.?$/i, "")
+      .replace(/[.'’-]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
 
   function toProfileSlug(name: string): string {
     return name
@@ -178,7 +213,7 @@ export default function Rankings() {
       );
     }, 50);
     return () => clearTimeout(timer);
-  }, [filteredData, allViewData]);
+  }, [filteredData, allViewData, showAllRows]);
 
   const positions = ["All", "QB", "RB", "WR", "TE"];
   const scoringFormats = ["Standard", "Half PPR", "PPR"];
@@ -186,33 +221,69 @@ export default function Rankings() {
   const isAll = filterPosition === "All";
   const isEmpty = isAll ? allViewData.length === 0 : filteredData.length === 0;
 
-  function PlayerCell({ player, compact }: { player: Player | null; compact?: boolean }) {
-    if (!player) return <div className="px-1 py-1" />;
-    const team = teamMap[player.player.toLowerCase().trim()];
-    const displayName = compact && MOBILE_SHORT_NAMES[player.player]
+  // All view: show the first 50 rows with an option to expand to the rest.
+  const ALL_VIEW_COLLAPSED_ROWS = 50;
+  const visibleAllRows = showAllRows
+    ? allViewData
+    : allViewData.slice(0, ALL_VIEW_COLLAPSED_ROWS);
+
+  // Collapse again whenever the filter changes.
+  useEffect(() => {
+    setShowAllRows(false);
+  }, [filterPosition, filterScoring]);
+
+  // Density-based fitting for the All view. We pick the least-compact rendering
+  // that fits the available width: 0 = name + team, 1 = name only, 2 = short
+  // name only. A ResizeObserver watches a stable full-width wrapper (its box
+  // doesn't change when the inner density does, so there's no feedback loop),
+  // and a measure→step-down loop compares the table's width against it.
+  const measureRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [density, setDensity] = useState(0);
+  const [measuring, setMeasuring] = useState(false);
+
+  useEffect(() => {
+    if (!isAll) return;
+    const el = measureRef.current;
+    if (!el) return;
+    const start = () => { setDensity(0); setMeasuring(true); };
+    const ro = new ResizeObserver(start);
+    ro.observe(el);
+    start(); // initial pass
+    return () => ro.disconnect();
+  }, [isAll, allViewData, showAllRows]);
+
+  useLayoutEffect(() => {
+    if (!measuring) return;
+    const wrap = measureRef.current;
+    const table = tableRef.current;
+    if (!wrap || !table) { setMeasuring(false); return; }
+    const overflowing = table.offsetWidth > wrap.clientWidth + 1;
+    if (overflowing && density < 2) {
+      setDensity((d) => d + 1); // try a more compact rendering, then re-measure
+    } else {
+      setMeasuring(false); // fits, or already at the most compact level
+    }
+  }, [measuring, density]);
+
+  function PlayerCell({ player }: { player: Player | null }) {
+    if (!player) return <div className="px-0.5 py-1" />;
+    const team = teamMap[normalizeName(player.player)];
+    // density 2 → short name (if available); team only shown at density 0
+    const name = density >= 2 && MOBILE_SHORT_NAMES[player.player]
       ? MOBILE_SHORT_NAMES[player.player]
       : player.player;
     return (
-      <div className="px-1 py-0.5 min-w-0">
-        {/* Mobile: name only, short if available */}
+      <div className="px-0.5 py-0.5 min-w-0">
         <a
           href={`https://statchasers.com/nfl/players/${toProfileSlug(player.player)}/`}
           target="_blank"
           rel="noopener noreferrer"
-          className="md:hidden font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-[10px] leading-tight block whitespace-nowrap"
+          className="flex w-full cursor-pointer items-baseline gap-1.5 font-semibold text-[#0B1F3A] hover:text-[#F4C430] hover:underline transition-colors duration-150 text-[8px] md:text-sm leading-tight whitespace-nowrap"
         >
-          {displayName}
-        </a>
-        {/* Desktop: name + team on same row */}
-        <a
-          href={`https://statchasers.com/nfl/players/${toProfileSlug(player.player)}/`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hidden md:flex items-baseline gap-1.5 font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 text-sm leading-tight whitespace-nowrap"
-        >
-          <span>{player.player}</span>
-          {team && (
-            <span className="text-xs font-medium text-muted-foreground">{team}</span>
+          <span>{name}</span>
+          {density === 0 && team && (
+            <span className="text-[8px] md:text-xs font-medium text-muted-foreground">{team}</span>
           )}
         </a>
       </div>
@@ -223,15 +294,15 @@ export default function Rankings() {
     <div className="bg-white font-sans">
 
       {/* Last Updated */}
-      <div className="w-full px-4 md:px-6 pt-3 text-xs text-muted-foreground">
+      <div className="w-full px-px pt-3 text-xs text-muted-foreground">
         Last updated: June 15, 2026 4:52pm ET
       </div>
 
       {/* Sticky Filter Bar */}
       <div className="bg-white border-b border-border shadow-sm">
-        <div className="w-full px-4 md:px-6 py-3 flex flex-col md:flex-row gap-3 items-center justify-between">
+        <div className="w-full px-px py-3 flex flex-col min-[560px]:flex-row gap-3 items-center justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-foreground uppercase tracking-wider hidden md:inline-block">
+            <span className="text-xs font-bold text-foreground uppercase tracking-wider hidden min-[560px]:inline-block">
               POS
             </span>
             <div className="flex gap-1.5">
@@ -254,7 +325,7 @@ export default function Rankings() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-foreground uppercase tracking-wider hidden md:inline-block">
+            <span className="text-xs font-bold text-foreground uppercase tracking-wider hidden min-[560px]:inline-block">
               FORMAT
             </span>
             <div className="flex gap-1.5">
@@ -285,7 +356,7 @@ export default function Rankings() {
       </div>
 
       {/* Main Content */}
-      <main className="w-full px-4 md:px-6 py-6">
+      <main className="w-full px-px py-6">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24">
             <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
@@ -304,17 +375,30 @@ export default function Rankings() {
 
         ) : isAll ? (
           /* ── All-positions side-by-side view ── */
-          <div
-            className="bg-white rounded-2xl border border-[#b0b8c8] overflow-x-auto"
-            style={{ boxShadow: "0 4px 16px rgba(15, 23, 42, 0.12)" }}
-          >
-            <table className="border-collapse" style={{ minWidth: "480px", width: "100%" }}>
+          <>
+          <div ref={measureRef} className="w-full">
+          <div className="rounded-[15px] border border-border bg-white shadow-sm overflow-hidden">
+          <div className="overflow-x-auto w-full">
+            <table
+              ref={tableRef}
+              className="border-collapse w-full"
+              style={density > 0 ? { minWidth: "360px" } : undefined}
+            >
+              {/* Rank column sizes to content; the 4 position columns share the
+                  rest equally so the table fills the width evenly. */}
+              <colgroup>
+                <col />
+                <col style={{ width: "25%" }} />
+                <col style={{ width: "25%" }} />
+                <col style={{ width: "25%" }} />
+                <col style={{ width: "25%" }} />
+              </colgroup>
               <thead>
                 <tr style={{ background: "#0B1F3A" }}>
                   {["#", "QB", "RB", "WR", "TE"].map((col) => (
                     <th
                       key={col}
-                      className="text-white text-[10px] md:text-xs font-bold uppercase tracking-wider px-1 md:px-3 py-2 text-center"
+                      className="text-white text-[10px] md:text-xs font-bold uppercase tracking-wider px-0.5 md:px-2 py-2 text-center"
                     >
                       {col}
                     </th>
@@ -322,32 +406,58 @@ export default function Rankings() {
                 </tr>
               </thead>
               <tbody>
-                {allViewData.map((row, idx) => (
+                {visibleAllRows.map((row) => (
                   <tr
                     key={row.rank}
-                    className={cn(
-                      "border-t border-border transition-colors duration-100 hover:bg-[#f8fafc]",
-                      idx % 2 === 0 ? "bg-white" : "bg-[#fafbfc]"
-                    )}
+                    className="group border-t border-border/60 first:border-t-0"
                   >
-                    <td className="text-center font-black text-xs md:text-sm px-1 py-1" style={{ color: "#0B1F3A" }}>
+                    <td className="text-center font-black text-[6px] md:text-xs px-0.5 py-1 transition-shadow duration-100 group-hover:shadow-[inset_0_0_0_9999px_rgba(11,31,58,0.045)]" style={{ color: "#0B1F3A" }}>
                       {row.rank}
                     </td>
-                    {(["QB", "RB", "WR", "TE"] as const).map((pos) => (
-                      <td key={pos} className="py-0.5 overflow-hidden">
-                        <PlayerCell player={row[pos]} compact />
-                      </td>
-                    ))}
+                    {(["QB", "RB", "WR", "TE"] as const).map((pos) => {
+                      const cellPlayer = row[pos];
+                      return (
+                        <td
+                          key={pos}
+                          className="py-0.5 overflow-hidden transition-shadow duration-100 group-hover:shadow-[inset_0_0_0_9999px_rgba(11,31,58,0.045)]"
+                          style={
+                            cellPlayer
+                              ? { backgroundColor: tierColor(cellPlayer.position, cellPlayer.rank) }
+                              : undefined
+                          }
+                        >
+                          <PlayerCell player={cellPlayer} />
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {allViewData.length > ALL_VIEW_COLLAPSED_ROWS && (
+            <div className="flex items-center justify-between gap-3 border-t border-border bg-white px-4 py-2.5">
+              <span className="text-xs text-muted-foreground">
+                {showAllRows
+                  ? `Showing all ${allViewData.length} players`
+                  : `Showing top ${visibleAllRows.length} of ${allViewData.length} players`}
+              </span>
+              <button
+                onClick={() => setShowAllRows((v) => !v)}
+                className="text-xs font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 whitespace-nowrap"
+              >
+                {showAllRows ? "Show less" : `Show all ${allViewData.length}`}
+              </button>
+            </div>
+          )}
+          </div>
+          </div>
+          </>
 
         ) : (
           /* ── Single-position tiered view ── */
           <div
-            className="bg-white rounded-2xl border border-[#b0b8c8] overflow-hidden"
+            className="bg-white rounded-2xl border border-border overflow-hidden"
             style={{ boxShadow: "0 4px 16px rgba(15, 23, 42, 0.12)" }}
           >
             <div
@@ -388,9 +498,9 @@ export default function Rankings() {
                       <span className="font-bold text-foreground text-xs md:text-sm">
                         {player.player}
                       </span>
-                      {teamMap[player.player.toLowerCase().trim()] && (
+                      {teamMap[normalizeName(player.player)] && (
                         <span className="text-[10px] md:text-xs font-medium text-muted-foreground shrink-0">
-                          {teamMap[player.player.toLowerCase().trim()]}
+                          {teamMap[normalizeName(player.player)]}
                         </span>
                       )}
                     </div>
