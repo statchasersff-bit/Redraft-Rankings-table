@@ -203,18 +203,6 @@ export default function Rankings() {
     }));
   }, [data, filterPosition, filterScoring]);
 
-  // Report height to parent iframe on content change
-  useEffect(() => {
-    if (window.self === window.top) return;
-    const timer = setTimeout(() => {
-      window.parent.postMessage(
-        { type: "iframe-resize", height: document.body.scrollHeight },
-        "*"
-      );
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [filteredData, allViewData, showAllRows]);
-
   const positions = ["All", "QB", "RB", "WR", "TE"];
   const scoringFormats = ["Standard", "Half PPR", "PPR"];
 
@@ -265,6 +253,36 @@ export default function Rankings() {
       setMeasuring(false); // fits, or already at the most compact level
     }
   }, [measuring, density]);
+
+  // Report height to the parent iframe on content change. The passive reporter
+  // in main.tsx (ResizeObserver + fonts.ready) is the reliable backstop; this
+  // render-triggered report just makes state-driven changes (POS/format clicks,
+  // expand/collapse) feel immediate. The deps cover every input that can change
+  // the rendered height: filter/scoring changes (filteredData), the All view
+  // (allViewData), expand/collapse (showAllRows), the team abbreviations that
+  // arrive asynchronously from the Sleeper API (teamMap), and the density-fitting
+  // passes (density / measuring settling). We report documentElement.scrollHeight
+  // to stay consistent with main.tsx so the two reporters can't disagree.
+  //
+  // We measure after the next paint (requestAnimationFrame) rather than on a bare
+  // timeout so the read reflects the committed layout, and again once web fonts
+  // have loaded, since the Inter font swap reflows rows taller after first paint.
+  useEffect(() => {
+    if (window.self === window.top) return;
+    let raf = 0;
+    const report = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        window.parent.postMessage(
+          { type: "iframe-resize", height: document.documentElement.scrollHeight },
+          "*"
+        );
+      });
+    };
+    report();
+    document.fonts?.ready.then(report);
+    return () => cancelAnimationFrame(raf);
+  }, [filteredData, allViewData, showAllRows, teamMap, density, measuring]);
 
   function PlayerCell({ player }: { player: Player | null }) {
     if (!player) return <div className="px-0.5 py-1" />;
