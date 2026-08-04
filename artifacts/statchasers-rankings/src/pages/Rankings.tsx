@@ -313,7 +313,7 @@ export default function Rankings() {
 
       {/* Last Updated */}
       <div className="w-full px-px pt-3 text-xs text-muted-foreground">
-        Last updated: June 15, 2026 4:52pm ET
+        Last updated: August 3, 2026 10:13pm ET
       </div>
 
       {/* Sticky Filter Bar */}
