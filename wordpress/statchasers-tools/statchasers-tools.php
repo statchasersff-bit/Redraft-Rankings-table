@@ -3,7 +3,7 @@
  * Plugin Name:       StatChasers Tools
  * Plugin URI:        https://statchasers.com/
  * Description:       Mounts StatChasers interactive tools directly into WordPress pages. The tool's default state is server-rendered into the page HTML and then hydrated by the compiled bundle, so search engines receive the real player names, teams, ranks and table headings in the initial response instead of an empty iframe.
- * Version:           1.1.0
+ * Version:           1.2.1
  * Requires at least: 6.3
  * Requires PHP:      7.4
  * Author:            StatChasers
@@ -19,25 +19,42 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'STATCHASERS_TOOLS_VERSION', '1.1.0' );
+define( 'STATCHASERS_TOOLS_VERSION', '1.2.1' );
 define( 'STATCHASERS_TOOLS_FILE', __FILE__ );
 define( 'STATCHASERS_TOOLS_DIR', plugin_dir_path( __FILE__ ) );
 
 /**
+ * Where the tool is deployed, when nothing overrides it.
+ *
+ * This is baked in so a normal install is upload-activate-shortcode with no
+ * configuration step. The plugin loads the compiled bundle from here, so with
+ * no origin at all the tool renders as unstyled, non-interactive markup —
+ * which is a worse failure than a hardcoded default ever is for a plugin that
+ * only ever runs on one site.
+ */
+define( 'STATCHASERS_TOOLS_DEFAULT_ORIGIN', 'https://redraftrankings.statchasers.com' );
+
+/**
  * Origin the compiled tool is deployed to.
  *
- * Set STATCHASERS_TOOLS_APP_ORIGIN in wp-config.php, or filter it. When it is
- * empty the plugin runs entirely from the files bundled in assets/prerendered/,
- * which still produces a fully server-rendered page — it just can't pick up a
- * new deploy of the tool until the plugin is updated.
+ * Defaults to STATCHASERS_TOOLS_DEFAULT_ORIGIN. Override it by defining
+ * STATCHASERS_TOOLS_APP_ORIGIN in wp-config.php or by filtering, which is what
+ * a staging site pointing at a staging deploy of the tool would do.
+ *
+ * Setting it to an empty string is honoured, not treated as unset: the plugin
+ * then runs entirely from the files bundled in assets/prerendered/, which still
+ * server-renders the rankings into the page but leaves them unstyled and
+ * non-interactive, since the stylesheet and bundle both live on the origin.
  */
 function statchasers_tools_app_origin(): string {
-	$origin = defined( 'STATCHASERS_TOOLS_APP_ORIGIN' ) ? (string) STATCHASERS_TOOLS_APP_ORIGIN : '';
+	$origin = defined( 'STATCHASERS_TOOLS_APP_ORIGIN' )
+		? (string) STATCHASERS_TOOLS_APP_ORIGIN
+		: STATCHASERS_TOOLS_DEFAULT_ORIGIN;
 
 	/**
 	 * Filters the origin the tool bundle and prerendered markup are fetched from.
 	 *
-	 * @param string $origin Absolute origin, no trailing slash. E.g. https://rankings.statchasers.com
+	 * @param string $origin Absolute origin, no trailing slash. E.g. https://redraftrankings.statchasers.com
 	 */
 	$origin = (string) apply_filters( 'statchasers_tools_app_origin', $origin );
 

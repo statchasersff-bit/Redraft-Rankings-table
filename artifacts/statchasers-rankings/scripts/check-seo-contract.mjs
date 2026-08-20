@@ -11,8 +11,12 @@
 //   1. Filter controls are <button>, never <a href="?...">. Google crawls normal
 //      anchors, so faceted links spawn a large duplicate URL space over the same
 //      content. https://developers.google.com/search/docs/crawling-indexing/crawling-managing-faceted-navigation
-//   2. The tool never writes filter state into the URL. Nothing to canonicalize
-//      away means no ?position=RB&scoring=ppr duplicates in the first place.
+//   2. The tool never writes filter state into the crawlable URL. Nothing to
+//      canonicalize away means no ?position=RB&scoring=ppr duplicates in the
+//      first place. The fragment is the one exception — `#te` addresses the
+//      same URL as far as crawling and indexing go, so it buys shareable links
+//      at no SEO cost — and it is confined to src/lib/hash-state.ts so that
+//      "no URL state" stays mechanically checkable for every other module.
 //   3. The tool never touches <title>, <meta> or rel=canonical. Those belong to
 //      the WordPress page, server-side, where they're in the initial response.
 //   4. The tool emits no <h1>. The page owns exactly one, and the tool's <h2>
@@ -53,8 +57,19 @@ const SOURCE_FILES = [
   "src/entry-server.tsx",
   "src/pages/Rankings.tsx",
   "src/lib/rankings-data.ts",
+  "src/lib/hash-state.ts",
   "src/hooks/use-isomorphic-layout-effect.ts",
 ];
+
+/**
+ * The one module permitted to touch `location` and `history`.
+ *
+ * Fragment-only deep linking is deliberate (see the contract note above), but
+ * it is a narrow exemption: confining it to one small file is what keeps the
+ * blanket rule enforceable everywhere else, and what makes the exemption itself
+ * reviewable. HASH_STATE_RULES below constrain what it may do.
+ */
+const HASH_STATE_FILE = "src/lib/hash-state.ts";
 
 /** Query keys that would represent tool state if they ever showed up in a URL. */
 const STATE_PARAMS = ["position", "pos", "scoring", "format", "weeks", "week", "sort", "view", "tier"];
@@ -164,13 +179,31 @@ function checkFragment(html, label) {
 const FORBIDDEN_SOURCE = [
   {
     rule: "no-url-state",
-    pattern: /\b(?:history|window\.history)\.(?:push|replace)State\b/,
-    why: "would write filter state into the URL and create duplicate crawlable URLs",
+    pattern: /\b(?:history|window\.history)\.pushState\b/,
+    why: "would add a history entry per filter click, and is the faceted-navigation pattern this contract exists to prevent",
   },
   {
     rule: "no-url-state",
-    pattern: /\bnew URLSearchParams\b|\blocation\.search\b|\bwindow\.location\.(?:href|search)\s*=/,
-    why: "reads or writes URL state; filters are client-only by design",
+    pattern: /\b(?:history|window\.history)\.replaceState\b/,
+    why: `may only be called from ${HASH_STATE_FILE}, and only to set a fragment`,
+    except: HASH_STATE_FILE,
+  },
+  {
+    rule: "no-url-state",
+    pattern: /\blocation\.hash\b/,
+    why: `fragment handling belongs in ${HASH_STATE_FILE}, where one place owns the format`,
+    except: HASH_STATE_FILE,
+  },
+  {
+    rule: "no-url-state",
+    pattern: /\bnew URLSearchParams\b|\blocation\.search\b/,
+    why: "query-string state is crawlable, and would create the duplicate URL space this contract prevents",
+    except: HASH_STATE_FILE, // reads it, only to preserve it when rewriting the fragment
+  },
+  {
+    rule: "no-url-state",
+    pattern: /\blocation\.(?:href|search|pathname)\s*=[^=]|\blocation\.(?:assign|replace)\s*\(/,
+    why: "navigates or rewrites the URL; filters must not change the page's address",
   },
   {
     rule: "no-head-tags",
@@ -197,11 +230,42 @@ async function checkSource(rel) {
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/^[ \t]*\/\/.*$/gm, "");
 
-  for (const { rule, pattern, why } of FORBIDDEN_SOURCE) {
+  for (const { rule, pattern, why, except } of FORBIDDEN_SOURCE) {
+    if (except === rel) continue;
     const hit = code.match(pattern);
     if (hit) {
       fail(rule, `${rel} uses \`${hit[0]}\` — ${why}`);
     }
+  }
+
+  if (rel === HASH_STATE_FILE) checkHashState(code);
+}
+
+/**
+ * The exempt module, held to the terms of its exemption.
+ *
+ * It may set the fragment. It may not navigate, and it must actually be
+ * fragment-only — a `replaceState` reachable here with a path or query in it
+ * would reintroduce exactly the crawlable state the contract forbids, from the
+ * one file the general rules no longer cover.
+ */
+function checkHashState(code) {
+  for (const [pattern, why] of [
+    [/\breplaceState\s*\([^)]*\?/, "builds a URL containing a query string"],
+    [/\bwindow\.open\b|\blocation\.(?:assign|replace)\s*\(/, "navigates"],
+    [/\bdocument\.title\s*=/, "writes the title"],
+  ]) {
+    const hit = code.match(pattern);
+    if (hit) {
+      fail("no-url-state", `${HASH_STATE_FILE} ${why}: \`${hit[0].trim()}\``);
+    }
+  }
+
+  if (!/\bfunction\s+formatHash\b/.test(code)) {
+    fail(
+      "no-url-state",
+      `${HASH_STATE_FILE} no longer exports formatHash — the fragment format must stay in one place`,
+    );
   }
 }
 

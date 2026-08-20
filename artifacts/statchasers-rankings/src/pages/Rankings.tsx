@@ -3,6 +3,11 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 import {
+  readHashState,
+  subscribeToHash,
+  writeHashState,
+} from "@/lib/hash-state";
+import {
   ALL_VIEW_COLLAPSED_ROWS,
   DEFAULT_POSITION,
   DEFAULT_SCORING,
@@ -61,6 +66,48 @@ export default function Rankings({ payload, csvUrl = SHEET_URL }: RankingsProps)
   const [showAllRows, setShowAllRows] = useState(false);
 
   const updatedAt = payload?.updatedAt ?? FALLBACK_UPDATED_AT;
+
+  // Deep-linking, fragment only. See src/lib/hash-state.ts for why the fragment
+  // and not a query string, and for the format.
+  //
+  // Applied in a layout effect rather than in the initial state: the markup is
+  // server-rendered at the default filters and then hydrated, so seeding state
+  // from the URL during render would be a hydration mismatch. A layout effect
+  // commits before the browser paints, so a `#te` link still shows TE first —
+  // there is no visible flash of the QB board.
+  const hashApplied = useRef(false);
+
+  useIsomorphicLayoutEffect(() => {
+    const { position, scoring } = readHashState();
+    if (position) setFilterPosition(position);
+    if (scoring) setFilterScoring(scoring);
+    hashApplied.current = true;
+  }, []);
+
+  // Back and Forward, which move the fragment without re-mounting us.
+  useEffect(
+    () =>
+      subscribeToHash(() => {
+        const { position, scoring } = readHashState();
+        setFilterPosition(position ?? DEFAULT_POSITION);
+        setFilterScoring(scoring ?? DEFAULT_SCORING);
+      }),
+    [],
+  );
+
+  // Publish the filters back to the fragment, but never on the first pass. The
+  // page around us is WordPress: the fragment on arrival may be `#comments` or
+  // a theme's own anchor, and mounting is not a reason to clear it. Only a real
+  // filter change writes.
+  const hashPublished = useRef(false);
+
+  useEffect(() => {
+    if (!hashPublished.current) {
+      hashPublished.current = true;
+      return;
+    }
+    writeHashState(filterPosition, filterScoring);
+  }, [filterPosition, filterScoring]);
 
   // Runtime data loading only runs for the standalone app. When a payload was
   // baked in at build time it is already the freshest thing we have (the CSV

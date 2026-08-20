@@ -11,18 +11,24 @@ of it was part of this page's HTML.
 
 ## Install
 
-1. Copy the `statchasers-tools/` directory into `wp-content/plugins/`.
+1. Copy the `statchasers-tools/` directory into `wp-content/plugins/` (or upload
+   the zip via *Plugins → Add New → Upload Plugin*).
 2. Activate **StatChasers Tools** in *Plugins*.
-3. Tell it where the compiled tool is deployed, in `wp-config.php`:
-
-   ```php
-   define( 'STATCHASERS_TOOLS_APP_ORIGIN', 'https://rankings.statchasers.com' );
-   ```
-
-   Use the origin only — no trailing slash, no path.
-
-4. Put `[statchasers_rankings]` in the page where the iframe used to be, and
+3. Put `[statchasers_rankings]` in the page where the iframe used to be, and
    remove the iframe embed.
+
+There is no configuration step. The origin the tool is deployed to —
+`https://redraftrankings.statchasers.com` — is baked in as
+`STATCHASERS_TOOLS_DEFAULT_ORIGIN`, because this plugin only ever runs on one
+site and an unconfigured install renders the tool unstyled and non-interactive.
+
+To point a staging site at a staging deploy, override it in `wp-config.php`:
+
+```php
+define( 'STATCHASERS_TOOLS_APP_ORIGIN', 'https://staging-rankings.example.com' );
+```
+
+Use the origin only — no trailing slash, no path.
 
 From a theme template instead of a shortcode:
 
@@ -372,7 +378,7 @@ The build fails on a violation. The contract is documented at the top of
 
 | Constant                        | Default | Purpose                                                   |
 | ------------------------------- | ------- | --------------------------------------------------------- |
-| `STATCHASERS_TOOLS_APP_ORIGIN`  | `''`    | Origin the tool is deployed to                             |
+| `STATCHASERS_TOOLS_APP_ORIGIN`  | *(the baked-in default)* | Override the origin the tool is deployed to |
 | `STATCHASERS_TOOLS_USE_BUNDLED` | `false` | Skip all remote fetching and use the committed files only  |
 
 | Filter                             | Purpose                                              |
