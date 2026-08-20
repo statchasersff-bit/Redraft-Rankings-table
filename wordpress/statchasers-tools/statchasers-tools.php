@@ -3,7 +3,7 @@
  * Plugin Name:       StatChasers Tools
  * Plugin URI:        https://statchasers.com/
  * Description:       Mounts StatChasers interactive tools directly into WordPress pages. The tool's default state is server-rendered into the page HTML and then hydrated by the compiled bundle, so search engines receive the real player names, teams, ranks and table headings in the initial response instead of an empty iframe.
- * Version:           1.3.0
+ * Version:           1.3.2
  * Requires at least: 6.3
  * Requires PHP:      7.4
  * Author:            StatChasers
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'STATCHASERS_TOOLS_VERSION', '1.3.0' );
+define( 'STATCHASERS_TOOLS_VERSION', '1.3.2' );
 define( 'STATCHASERS_TOOLS_FILE', __FILE__ );
 define( 'STATCHASERS_TOOLS_DIR', plugin_dir_path( __FILE__ ) );
 

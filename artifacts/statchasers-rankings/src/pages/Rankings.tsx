@@ -173,14 +173,18 @@ export default function Rankings({
 
     fetch("https://api.sleeper.app/v1/players/nfl")
       .then((r) => r.json())
-      .then((sleeper: Record<string, { full_name?: string; team?: string | null }>) => {
-        if (cancelled) return;
-        const map: TeamMap = {};
-        Object.values(sleeper).forEach((p) => {
-          if (p.full_name && p.team) map[normalizeName(p.full_name)] = p.team;
-        });
-        setTeamMap(map);
-      })
+      .then(
+        (
+          sleeper: Record<string, { full_name?: string; team?: string | null }>,
+        ) => {
+          if (cancelled) return;
+          const map: TeamMap = {};
+          Object.values(sleeper).forEach((p) => {
+            if (p.full_name && p.team) map[normalizeName(p.full_name)] = p.team;
+          });
+          setTeamMap(map);
+        },
+      )
       .catch(() => {});
 
     return () => {
@@ -277,7 +281,10 @@ export default function Rankings({
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         window.parent.postMessage(
-          { type: "iframe-resize", height: document.documentElement.scrollHeight },
+          {
+            type: "iframe-resize",
+            height: document.documentElement.scrollHeight,
+          },
           "*",
         );
       });
@@ -309,7 +316,8 @@ export default function Rankings({
     if (!delta) return;
     event.preventDefault();
     const index = POSITIONS.indexOf(filterPosition);
-    const next = POSITIONS[(index + delta + POSITIONS.length) % POSITIONS.length];
+    const next =
+      POSITIONS[(index + delta + POSITIONS.length) % POSITIONS.length];
     setFilterPosition(next);
     document.getElementById(tabId(next))?.focus();
   }
@@ -320,91 +328,82 @@ export default function Rankings({
       {/* No heading of its own. The WordPress page's H1 names this tool; a
           near-identical heading inside the widget only competed with it. The
           per-panel <h3>s below still give the tables their structure. */}
-      <p className="w-full px-px pt-4 text-xs text-muted-foreground">
-        Last updated:{" "}
-        {payload?.generatedAt ? (
-          <time dateTime={payload.generatedAt}>{updatedAt}</time>
-        ) : (
-          updatedAt
-        )}
-      </p>
+      {/* Filter bar. The controls sit directly on the page rather than in a
+          panel of their own — the tables below already carry the tool's visual
+          weight, and a second bordered surface above them just competed. */}
+      <div className="mt-4 w-full px-px py-3 flex flex-col min-[560px]:flex-row gap-3 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            id="sc-rankings-pos-label"
+            className="text-xs font-bold text-foreground uppercase tracking-wider hidden min-[560px]:inline-block"
+          >
+            POS
+          </span>
+          <div
+            role="tablist"
+            aria-labelledby="sc-rankings-pos-label"
+            className="flex gap-1.5"
+          >
+            {POSITIONS.map((pos) => (
+              <button
+                key={pos}
+                type="button"
+                role="tab"
+                id={tabId(pos)}
+                aria-controls={panelId(pos)}
+                aria-selected={filterPosition === pos}
+                tabIndex={filterPosition === pos ? 0 : -1}
+                data-testid={`filter-position-${pos}`}
+                onClick={() => setFilterPosition(pos)}
+                onKeyDown={onTabKeyDown}
+                className={cn(
+                  "px-3 md:px-4 py-1.5 text-sm font-semibold rounded-lg border transition-all duration-150",
+                  filterPosition === pos
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-secondary text-secondary-foreground border-transparent hover:border-border",
+                )}
+              >
+                {pos}
+              </button>
+            ))}
+          </div>
+        </div>
 
-      {/* Filter Bar */}
-      <div className="mt-3 bg-white border-b border-border shadow-sm">
-        <div className="w-full px-px py-3 flex flex-col min-[560px]:flex-row gap-3 items-center justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              id="sc-rankings-pos-label"
-              className="text-xs font-bold text-foreground uppercase tracking-wider hidden min-[560px]:inline-block"
-            >
-              POS
-            </span>
-            <div
-              role="tablist"
-              aria-labelledby="sc-rankings-pos-label"
-              className="flex gap-1.5"
-            >
-              {POSITIONS.map((pos) => (
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            id="sc-rankings-format-label"
+            className="text-xs font-bold text-foreground uppercase tracking-wider hidden min-[560px]:inline-block"
+          >
+            FORMAT
+          </span>
+          <div
+            role="group"
+            aria-labelledby="sc-rankings-format-label"
+            className="flex gap-1.5"
+          >
+            {SCORING_FORMATS.map((fmt) => {
+              const isDisabled = fmt !== "PPR";
+              return (
                 <button
-                  key={pos}
+                  key={fmt}
                   type="button"
-                  role="tab"
-                  id={tabId(pos)}
-                  aria-controls={panelId(pos)}
-                  aria-selected={filterPosition === pos}
-                  tabIndex={filterPosition === pos ? 0 : -1}
-                  data-testid={`filter-position-${pos}`}
-                  onClick={() => setFilterPosition(pos)}
-                  onKeyDown={onTabKeyDown}
+                  aria-pressed={filterScoring === fmt}
+                  data-testid={`filter-scoring-${fmt.replace(" ", "-")}`}
+                  onClick={() => !isDisabled && setFilterScoring(fmt)}
+                  disabled={isDisabled}
                   className={cn(
-                    "px-3 md:px-4 py-1.5 text-sm font-semibold rounded-lg border transition-all duration-150",
-                    filterPosition === pos
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : "bg-secondary text-secondary-foreground border-transparent hover:border-border",
+                    "px-3 md:px-4 py-1.5 text-sm font-semibold rounded-lg border transition-all duration-150 whitespace-nowrap",
+                    isDisabled
+                      ? "bg-secondary text-secondary-foreground/30 border-transparent opacity-40 cursor-not-allowed"
+                      : filterScoring === fmt
+                        ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                        : "bg-secondary text-secondary-foreground border-transparent hover:border-border",
                   )}
                 >
-                  {pos}
+                  {fmt}
                 </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              id="sc-rankings-format-label"
-              className="text-xs font-bold text-foreground uppercase tracking-wider hidden min-[560px]:inline-block"
-            >
-              FORMAT
-            </span>
-            <div
-              role="group"
-              aria-labelledby="sc-rankings-format-label"
-              className="flex gap-1.5"
-            >
-              {SCORING_FORMATS.map((fmt) => {
-                const isDisabled = fmt !== "PPR";
-                return (
-                  <button
-                    key={fmt}
-                    type="button"
-                    aria-pressed={filterScoring === fmt}
-                    data-testid={`filter-scoring-${fmt.replace(" ", "-")}`}
-                    onClick={() => !isDisabled && setFilterScoring(fmt)}
-                    disabled={isDisabled}
-                    className={cn(
-                      "px-3 md:px-4 py-1.5 text-sm font-semibold rounded-lg border transition-all duration-150 whitespace-nowrap",
-                      isDisabled
-                        ? "bg-secondary text-secondary-foreground/30 border-transparent opacity-40 cursor-not-allowed"
-                        : filterScoring === fmt
-                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                          : "bg-secondary text-secondary-foreground border-transparent hover:border-border",
-                    )}
-                  >
-                    {fmt}
-                  </button>
-                );
-              })}
-            </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -457,6 +456,7 @@ export default function Rankings({
                       scoring={filterScoring}
                       total={allViewData.length}
                       updatedAt={updatedAt}
+                      generatedAt={payload?.generatedAt}
                     />
                   </div>
                   {allViewData.length > ALL_VIEW_COLLAPSED_ROWS && (
@@ -471,7 +471,9 @@ export default function Rankings({
                         onClick={() => setShowAllRows((v) => !v)}
                         className="text-xs font-semibold text-[#0B1F3A] hover:text-[#F4C430] transition-colors duration-150 whitespace-nowrap"
                       >
-                        {showAllRows ? "Show less" : `Show all ${allViewData.length}`}
+                        {showAllRows
+                          ? "Show less"
+                          : `Show all ${allViewData.length}`}
                       </button>
                     </div>
                   )}
@@ -497,6 +499,7 @@ export default function Rankings({
                   teamMap={teamMap}
                   scoring={filterScoring}
                   updatedAt={updatedAt}
+                  generatedAt={payload?.generatedAt}
                 />
               </section>
             ))}
@@ -562,6 +565,7 @@ const AllPositionsTable = memo(function AllPositionsTable({
   scoring,
   total,
   updatedAt,
+  generatedAt,
 }: {
   tableRef: React.RefObject<HTMLTableElement | null>;
   rows: AllRow[];
@@ -570,6 +574,8 @@ const AllPositionsTable = memo(function AllPositionsTable({
   scoring: string;
   total: number;
   updatedAt: string;
+  /** ISO form of `updatedAt`, when the payload carried one. */
+  generatedAt?: string;
 }) {
   return (
     <table
@@ -580,7 +586,12 @@ const AllPositionsTable = memo(function AllPositionsTable({
       <caption className="px-2 py-2 text-left text-xs text-muted-foreground">
         Quarterback, running back, wide receiver and tight end rankings aligned
         by overall rank &middot; {scoring} scoring &middot; {total} players
-        &middot; updated {updatedAt}
+        &middot; updated{" "}
+        {generatedAt ? (
+          <time dateTime={generatedAt}>{updatedAt}</time>
+        ) : (
+          updatedAt
+        )}
       </caption>
       {/* Rank column sizes to content; the 4 position columns share the rest
           equally so the table fills the width evenly. */}
@@ -627,11 +638,20 @@ const AllPositionsTable = memo(function AllPositionsTable({
                   className="sc-all-cell"
                   style={
                     cellPlayer
-                      ? { backgroundColor: tierColor(cellPlayer.position, cellPlayer.rank) }
+                      ? {
+                          backgroundColor: tierColor(
+                            cellPlayer.position,
+                            cellPlayer.rank,
+                          ),
+                        }
                       : undefined
                   }
                 >
-                  <PlayerCell player={cellPlayer} teamMap={teamMap} density={density} />
+                  <PlayerCell
+                    player={cellPlayer}
+                    teamMap={teamMap}
+                    density={density}
+                  />
                 </td>
               );
             })}
@@ -667,7 +687,9 @@ function PlayerCell({
         className="sc-player-link"
       >
         <span>{name}</span>
-        {density === 0 && team && <span className="sc-player-team">{team}</span>}
+        {density === 0 && team && (
+          <span className="sc-player-team">{team}</span>
+        )}
       </a>
     </div>
   );
@@ -682,12 +704,15 @@ const PositionTable = memo(function PositionTable({
   teamMap,
   scoring,
   updatedAt,
+  generatedAt,
 }: {
   position: StatPosition;
   groups: TierGroup[];
   teamMap: TeamMap;
   scoring: string;
   updatedAt: string;
+  /** ISO form of `updatedAt`, when the payload carried one. */
+  generatedAt?: string;
 }) {
   const count = groups.reduce((sum, g) => sum + g.players.length, 0);
   const limit = POSITION_LIMITS[position];
@@ -710,7 +735,12 @@ const PositionTable = memo(function PositionTable({
       <table className="w-full border-collapse">
         <caption className="px-4 py-2 text-left text-xs text-muted-foreground">
           Top {Math.min(count, limit)} {POSITION_PLURALS[position]} by tier
-          &middot; {scoring} scoring &middot; updated {updatedAt}
+          &middot; {scoring} scoring &middot; updated{" "}
+          {generatedAt ? (
+            <time dateTime={generatedAt}>{updatedAt}</time>
+          ) : (
+            updatedAt
+          )}
         </caption>
         <colgroup>
           <col className="w-12 md:w-18" />
@@ -746,7 +776,8 @@ const PositionTable = memo(function PositionTable({
                 colSpan={4}
                 className="text-left text-white font-black text-xs tracking-widest uppercase px-4 py-1"
                 style={{
-                  background: "linear-gradient(90deg, #0B1F3A 0%, #132A4A 100%)",
+                  background:
+                    "linear-gradient(90deg, #0B1F3A 0%, #132A4A 100%)",
                 }}
               >
                 Tier {group.tier}
