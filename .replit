@@ -22,6 +22,11 @@ timeoutMs = 20000
 [nix]
 channel = "stable-25_05"
 
+[env]
+# Keep Claude Code logged in across Repl restarts: /home/runner is wiped on
+# every container start, the workspace volume is not.
+CLAUDE_CONFIG_DIR = "/home/runner/workspace/.claude-config"
+
 [[ports]]
 localPort = 8080
 externalPort = 8080

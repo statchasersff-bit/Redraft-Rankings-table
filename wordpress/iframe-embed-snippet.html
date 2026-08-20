@@ -1,0 +1,77 @@
+<!--
+  StatChasers rankings — iframe embed for a WordPress Code / Custom HTML module.
+
+  Use this ONLY while the page is still on the iframe embed. Once the
+  statchasers-tools plugin is active you should replace the whole module with
+  [statchasers_rankings] and delete this — the plugin renders the tool into the
+  page directly and there is no height to sync.
+
+  Why the tool gets truncated without this:
+  the app inside the iframe reports its real content height to the parent with
+  postMessage({type:"iframe-resize", height}) — on load, after the Inter webfont
+  swaps in, and on every ResizeObserver tick (see src/main.tsx). Nothing on the
+  WordPress side listens, so the iframe keeps whatever height the page builder
+  gave it and everything below that line is clipped.
+-->
+
+<div class="sc-embed">
+  <iframe
+    id="sc-rankings-frame"
+    class="sc-embed__frame"
+    src="https://rankings.statchasers.com/"
+    title="2026 Fantasy Football Redraft Rankings"
+    loading="lazy"
+    scrolling="no"
+    height="1400"
+  ></iframe>
+</div>
+
+<style>
+  /*
+   * Page builders (Divi, Elementor, WPBakery) wrap the module in their own
+   * divs, and some of them clip. Neutralise that for this subtree only —
+   * without it the iframe can grow correctly and still be cut off by an
+   * ancestor.
+   */
+  .sc-embed,
+  .sc-embed * {
+    max-height: none;
+  }
+  .sc-embed {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+  .sc-embed__frame {
+    display: block;   /* kills the inline-element baseline gap */
+    width: 100%;
+    border: 0;
+    /* Starting height only; JS replaces it with the reported height. Chosen to
+       be close to the real desktop height so the page doesn't visibly jump. */
+    height: 1400px;
+    /* Never scroll inside the frame — the page itself is the scroller. */
+    overflow: hidden;
+  }
+</style>
+
+<script>
+(function () {
+  var APP_ORIGIN = "https://rankings.statchasers.com";
+  var frame = document.getElementById("sc-rankings-frame");
+  if (!frame) return;
+
+  window.addEventListener("message", function (event) {
+    if (event.origin !== APP_ORIGIN) return;
+
+    var data = event.data;
+    if (!data || data.type !== "iframe-resize") return;
+
+    var height = parseInt(data.height, 10);
+    if (!height || height < 200) return;
+
+    // +2px absorbs sub-pixel rounding, which otherwise leaves a 1px scrollbar
+    // inside the frame and clips the last row's bottom border.
+    frame.style.height = height + 2 + "px";
+  });
+})();
+</script>

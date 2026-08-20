@@ -10,7 +10,9 @@ const queryClient = new QueryClient();
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={Rankings} />
+      {/* Rankings takes optional props the router doesn't supply, so it's
+          wrapped rather than passed as `component`. */}
+      <Route path="/">{() => <Rankings />}</Route>
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,3 +1,36 @@
 /*
   X-Frame-Options: ALLOWALL
   Content-Security-Policy: frame-ancestors 'self' https://statchasers.com https://*.statchasers.com
+  # The tool's canonical home is the WordPress page that mounts it, which now
+  # serves the same rankings in its own HTML. This keeps the raw app URL from
+  # competing with that page in search, while `indexifembedded` still lets
+  # Google process this response wherever it is embedded.
+  # https://developers.google.com/search/docs/crawling-indexing/robots-meta-tag
+  X-Robots-Tag: noindex, indexifembedded
+
+# WordPress loads the embed bundle from this host as an ES module. Module
+# scripts are always fetched in CORS mode, so cross-origin responses must opt in
+# explicitly or the browser refuses to execute them.
+#
+# Every filename here is content-hashed by the build, so a changed file is a
+# changed URL and these can be cached permanently. This is the single biggest
+# TTFB win available for repeat views and for the CDN edge.
+/assets/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=31536000, immutable
+
+# The prerendered fragment is normally read server-side by the plugin, but
+# allowing direct reads keeps a client-side fallback possible.
+#
+# These filenames are stable, so they can't be immutable. They're cached at the
+# CDN edge and revalidated in the background: a page view is served from cache
+# while a new deploy propagates, rather than waiting on the origin.
+/embed/*
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=300, s-maxage=3600, stale-while-revalidate=86400
+
+# Read cross-origin only on the degraded path, when the embedded payload is
+# missing and the tool has to load its own data.
+/rankings.csv
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=300, s-maxage=3600, stale-while-revalidate=86400

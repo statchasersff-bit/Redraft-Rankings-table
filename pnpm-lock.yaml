@@ -4,72 +4,6 @@ settings:
   autoInstallPeers: false
   excludeLinksFromLockfile: false
 
-catalogs:
-  default:
-    '@replit/vite-plugin-cartographer':
-      specifier: ^0.5.1
-      version: 0.5.1
-    '@replit/vite-plugin-dev-banner':
-      specifier: ^0.1.1
-      version: 0.1.2
-    '@replit/vite-plugin-runtime-error-modal':
-      specifier: ^0.0.6
-      version: 0.0.6
-    '@tailwindcss/vite':
-      specifier: ^4.1.14
-      version: 4.2.1
-    '@tanstack/react-query':
-      specifier: ^5.90.21
-      version: 5.90.21
-    '@types/node':
-      specifier: ^25.3.3
-      version: 25.3.5
-    '@types/react':
-      specifier: ^19.2.0
-      version: 19.2.14
-    '@types/react-dom':
-      specifier: ^19.2.0
-      version: 19.2.3
-    '@vitejs/plugin-react':
-      specifier: ^5.0.4
-      version: 5.1.4
-    class-variance-authority:
-      specifier: ^0.7.1
-      version: 0.7.1
-    clsx:
-      specifier: ^2.1.1
-      version: 2.1.1
-    drizzle-orm:
-      specifier: ^0.45.2
-      version: 0.45.2
-    framer-motion:
-      specifier: ^12.23.24
-      version: 12.35.1
-    lucide-react:
-      specifier: ^0.545.0
-      version: 0.545.0
-    react:
-      specifier: 19.1.0
-      version: 19.1.0
-    react-dom:
-      specifier: 19.1.0
-      version: 19.1.0
-    tailwind-merge:
-      specifier: ^3.3.1
-      version: 3.5.0
-    tailwindcss:
-      specifier: ^4.1.14
-      version: 4.2.1
-    tsx:
-      specifier: ^4.21.0
-      version: 4.21.0
-    vite:
-      specifier: ^7.3.2
-      version: 7.3.2
-    zod:
-      specifier: ^3.25.76
-      version: 3.25.76
-
 overrides:
   esbuild>@esbuild/darwin-arm64: '-'
   esbuild>@esbuild/darwin-x64: '-'
@@ -590,6 +524,9 @@ importers:
       vite:
         specifier: 'catalog:'
         version: 7.3.2(@types/node@25.3.5)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2)
+      web-vitals:
+        specifier: ^6.1.1
+        version: 6.1.1
       wouter:
         specifier: ^3.3.5
         version: 3.9.0(react@19.1.0)
@@ -2818,6 +2755,7 @@ packages:
   recharts@2.15.4:
     resolution: {integrity: sha512-UT/q6fwS3c1dHbXv2uFgYJ9BMFHu3fwnd7AYZaEQhXuYQ4hgsxLvsUXzGdKeZrW5xopzDCvuA2N41WJ88I7zIw==}
     engines: {node: '>=14'}
+    deprecated: 1.x and 2.x branches are no longer active. Bump to Recharts v3 to receive latest features and bugfixes. See https://github.com/recharts/recharts/wiki/3.0-migration-guide
     peerDependencies:
       react: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -2985,6 +2923,7 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
+    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0
@@ -3139,6 +3078,9 @@ packages:
         optional: true
       yaml:
         optional: true
+
+  web-vitals@6.1.1:
+    resolution: {integrity: sha512-r93gKnR6ZC2O8F3JrS0AAGIQ0v0OhXuyg4DAj2oG7K+GPkwXfUSc3ZcWeu50AsV5yIc6xxnTjERipJ6EvSw2vg==}
 
   which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
@@ -5689,6 +5631,8 @@ snapshots:
       lightningcss: 1.31.1
       tsx: 4.21.0
       yaml: 2.8.2
+
+  web-vitals@6.1.1: {}
 
   which@2.0.2:
     dependencies:

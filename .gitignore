@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Claude Code config + login credentials (persisted here, never commit)
+.claude-config/
