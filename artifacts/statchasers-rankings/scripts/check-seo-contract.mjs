@@ -57,7 +57,7 @@ const SOURCE_FILES = [
   "src/entry-server.tsx",
   "src/pages/Rankings.tsx",
   "src/lib/rankings-data.ts",
-  "src/lib/hash-state.ts",
+  "src/lib/url-state.ts",
   "src/hooks/use-isomorphic-layout-effect.ts",
 ];
 
@@ -69,7 +69,7 @@ const SOURCE_FILES = [
  * blanket rule enforceable everywhere else, and what makes the exemption itself
  * reviewable. HASH_STATE_RULES below constrain what it may do.
  */
-const HASH_STATE_FILE = "src/lib/hash-state.ts";
+const URL_STATE_FILE = "src/lib/url-state.ts";
 
 /** Query keys that would represent tool state if they ever showed up in a URL. */
 const STATE_PARAMS = ["position", "pos", "scoring", "format", "weeks", "week", "sort", "view", "tier"];
@@ -185,20 +185,20 @@ const FORBIDDEN_SOURCE = [
   {
     rule: "no-url-state",
     pattern: /\b(?:history|window\.history)\.replaceState\b/,
-    why: `may only be called from ${HASH_STATE_FILE}, and only to set a fragment`,
-    except: HASH_STATE_FILE,
+    why: `may only be called from ${URL_STATE_FILE}, and only for a path the plugin serves`,
+    except: URL_STATE_FILE,
   },
   {
     rule: "no-url-state",
     pattern: /\blocation\.hash\b/,
-    why: `fragment handling belongs in ${HASH_STATE_FILE}, where one place owns the format`,
-    except: HASH_STATE_FILE,
+    why: `URL handling belongs in ${URL_STATE_FILE}, where one place owns the format`,
+    except: URL_STATE_FILE,
   },
   {
     rule: "no-url-state",
     pattern: /\bnew URLSearchParams\b|\blocation\.search\b/,
     why: "query-string state is crawlable, and would create the duplicate URL space this contract prevents",
-    except: HASH_STATE_FILE, // reads it, only to preserve it when rewriting the fragment
+    except: URL_STATE_FILE, // reads it, only to preserve it when rewriting the fragment
   },
   {
     rule: "no-url-state",
@@ -238,7 +238,7 @@ async function checkSource(rel) {
     }
   }
 
-  if (rel === HASH_STATE_FILE) checkHashState(code);
+  if (rel === URL_STATE_FILE) checkUrlState(code);
 }
 
 /**
@@ -249,22 +249,32 @@ async function checkSource(rel) {
  * would reintroduce exactly the crawlable state the contract forbids, from the
  * one file the general rules no longer cover.
  */
-function checkHashState(code) {
+function checkUrlState(code) {
   for (const [pattern, why] of [
-    [/\breplaceState\s*\([^)]*\?/, "builds a URL containing a query string"],
+    [/\breplaceState\s*\([^)]*["'`]\?/, "builds a URL containing a query string"],
     [/\bwindow\.open\b|\blocation\.(?:assign|replace)\s*\(/, "navigates"],
     [/\bdocument\.title\s*=/, "writes the title"],
   ]) {
     const hit = code.match(pattern);
     if (hit) {
-      fail("no-url-state", `${HASH_STATE_FILE} ${why}: \`${hit[0].trim()}\``);
+      fail("no-url-state", `${URL_STATE_FILE} ${why}: \`${hit[0].trim()}\``);
     }
   }
 
-  if (!/\bfunction\s+formatHash\b/.test(code)) {
+  if (!/\bfunction\s+formatRoute\b/.test(code)) {
     fail(
       "no-url-state",
-      `${HASH_STATE_FILE} no longer exports formatHash — the fragment format must stay in one place`,
+      `${URL_STATE_FILE} no longer exports formatRoute — the path format must stay in one place`,
+    );
+  }
+
+  // The whole reason paths are safe to write is that the plugin registered
+  // rewrite rules for them. Writing one without a base path means writing a URL
+  // nothing has agreed to serve, which 404s on reload.
+  if (!/basePath === ""\) return;/.test(code)) {
+    fail(
+      "no-url-state",
+      `${URL_STATE_FILE} must refuse to write a path when no base path was supplied`,
     );
   }
 }

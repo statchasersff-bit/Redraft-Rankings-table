@@ -3,10 +3,10 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsomorphicLayoutEffect } from "@/hooks/use-isomorphic-layout-effect";
 import {
-  readHashState,
-  subscribeToHash,
-  writeHashState,
-} from "@/lib/hash-state";
+  readRouteState,
+  subscribeToRoute,
+  writeRouteState,
+} from "@/lib/url-state";
 import {
   ALL_VIEW_COLLAPSED_ROWS,
   DEFAULT_POSITION,
@@ -52,62 +52,80 @@ interface RankingsProps {
    * absolute URL; the standalone app uses the default relative one.
    */
   csvUrl?: string;
+  /**
+   * The hosting page's own path, e.g. `/redraft-rankings/`. Supplied by the
+   * WordPress plugin, which is the only thing that knows it — and which has
+   * registered the rewrite rules that make `<basePath>/ppr/te/` resolve.
+   *
+   * Empty means nobody has promised to serve those paths (the standalone app),
+   * and the tool leaves the URL alone entirely.
+   */
+  basePath?: string;
+  /**
+   * Filters the server already rendered. These come from the URL, resolved
+   * server-side, so the client's first render matches the markup it hydrates.
+   */
+  initialPosition?: PositionFilter;
+  initialScoring?: string;
 }
 
-export default function Rankings({ payload, csvUrl = SHEET_URL }: RankingsProps) {
+export default function Rankings({
+  payload,
+  csvUrl = SHEET_URL,
+  basePath = "",
+  initialPosition = DEFAULT_POSITION,
+  initialScoring = DEFAULT_SCORING,
+}: RankingsProps) {
   const [players, setPlayers] = useState<Player[]>(payload?.players ?? []);
   const [teamMap, setTeamMap] = useState<TeamMap>(payload?.teams ?? {});
   const [loading, setLoading] = useState(!payload);
   const [error, setError] = useState<string | null>(null);
 
   const [filterPosition, setFilterPosition] =
-    useState<PositionFilter>(DEFAULT_POSITION);
-  const [filterScoring, setFilterScoring] = useState<string>(DEFAULT_SCORING);
+    useState<PositionFilter>(initialPosition);
+  const [filterScoring, setFilterScoring] = useState<string>(initialScoring);
   const [showAllRows, setShowAllRows] = useState(false);
 
   const updatedAt = payload?.updatedAt ?? FALLBACK_UPDATED_AT;
 
-  // Deep-linking, fragment only. See src/lib/hash-state.ts for why the fragment
-  // and not a query string, and for the format.
+  // Deep-linking. See src/lib/url-state.ts for the format and for why writes
+  // are conditional on the plugin having supplied a base path.
   //
-  // Applied in a layout effect rather than in the initial state: the markup is
-  // server-rendered at the default filters and then hydrated, so seeding state
-  // from the URL during render would be a hydration mismatch. A layout effect
-  // commits before the browser paints, so a `#te` link still shows TE first —
-  // there is no visible flash of the QB board.
-  const hashApplied = useRef(false);
-
+  // The server already resolved the URL into `initialPosition`/`initialScoring`
+  // above, so this is a reconciliation pass, not the primary mechanism: it only
+  // does anything when the rendered state and the address bar disagree, which
+  // in practice means a page cache served one path's HTML at another path, or
+  // an old `#ppr-te` link needs upgrading. Running it as a layout effect means
+  // the correction lands before the browser paints, so there's no visible flash
+  // of the wrong board.
   useIsomorphicLayoutEffect(() => {
-    const { position, scoring } = readHashState();
+    const { position, scoring } = readRouteState(basePath);
     if (position) setFilterPosition(position);
     if (scoring) setFilterScoring(scoring);
-    hashApplied.current = true;
-  }, []);
+  }, [basePath]);
 
-  // Back and Forward, which move the fragment without re-mounting us.
+  // Back and Forward, which move the URL without re-mounting us.
   useEffect(
     () =>
-      subscribeToHash(() => {
-        const { position, scoring } = readHashState();
-        setFilterPosition(position ?? DEFAULT_POSITION);
-        setFilterScoring(scoring ?? DEFAULT_SCORING);
+      subscribeToRoute(() => {
+        const { position, scoring } = readRouteState(basePath);
+        setFilterPosition(position ?? initialPosition);
+        setFilterScoring(scoring ?? initialScoring);
       }),
-    [],
+    [basePath, initialPosition, initialScoring],
   );
 
-  // Publish the filters back to the fragment, but never on the first pass. The
-  // page around us is WordPress: the fragment on arrival may be `#comments` or
-  // a theme's own anchor, and mounting is not a reason to clear it. Only a real
-  // filter change writes.
-  const hashPublished = useRef(false);
+  // Publish the filters back to the URL, but never on the first pass — mounting
+  // is not a filter change, and the server already put us on the right path.
+  const routePublished = useRef(false);
 
   useEffect(() => {
-    if (!hashPublished.current) {
-      hashPublished.current = true;
+    if (!routePublished.current) {
+      routePublished.current = true;
       return;
     }
-    writeHashState(filterPosition, filterScoring);
-  }, [filterPosition, filterScoring]);
+    writeRouteState(basePath, filterPosition, filterScoring);
+  }, [basePath, filterPosition, filterScoring]);
 
   // Runtime data loading only runs for the standalone app. When a payload was
   // baked in at build time it is already the freshest thing we have (the CSV

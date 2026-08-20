@@ -35,8 +35,30 @@ const TOOL_EMBED_DIR = path.join(
   "embed",
 );
 
-/** Bundled fallbacks, and the built file each must match. */
-const FALLBACKS = ["rankings.html", "assets.json", "tool-meta.json"];
+/**
+ * Bundled fallbacks, and the built file each must match.
+ *
+ * One fragment per scoring format, so an origin outage doesn't serve the PPR
+ * board at a /standard/ URL. The slugs come from the built tool-meta rather
+ * than being listed here, so adding a scoring format doesn't silently ship a
+ * zip missing its fragment.
+ */
+const BASE_FALLBACKS = ["rankings.html", "assets.json", "tool-meta.json"];
+
+async function resolveFallbacks() {
+  const metaPath = path.join(TOOL_EMBED_DIR, "tool-meta.json");
+  if (!existsSync(metaPath)) return BASE_FALLBACKS;
+
+  try {
+    const meta = JSON.parse(await readFile(metaPath, "utf8"));
+    const slugs = meta?.routes?.scoring;
+    if (!Array.isArray(slugs) || slugs.length === 0) return BASE_FALLBACKS;
+
+    return [...BASE_FALLBACKS, ...slugs.map((slug) => `rankings-${slug}.html`)];
+  } catch {
+    return BASE_FALLBACKS;
+  }
+}
 
 const problems = [];
 const notes = [];
@@ -77,8 +99,9 @@ async function readVersion() {
 /** The bundled fallbacks must be real, and must match the current tool build. */
 async function checkFallbacks() {
   const dir = path.join(PLUGIN_DIR, "assets", "prerendered");
+  const fallbacks = await resolveFallbacks();
 
-  for (const name of FALLBACKS) {
+  for (const name of fallbacks) {
     const file = path.join(dir, name);
     if (!existsSync(file)) {
       fail(`missing bundled fallback: assets/prerendered/${name}`);
@@ -89,15 +112,15 @@ async function checkFallbacks() {
 
     // Same validity checks the plugin applies at runtime, so a zip can't ship
     // something the plugin would reject and render as an empty container.
-    if (name === "rankings.html") {
+    if (name.startsWith("rankings") && name.endsWith(".html")) {
       if (
         !body.includes('data-statchasers-tool="rankings"') ||
         !body.includes("data-statchasers-root")
       ) {
-        fail("assets/prerendered/rankings.html is not a valid tool fragment");
+        fail(`assets/prerendered/${name} is not a valid tool fragment`);
       }
       if (/<h1[\s>]/i.test(body)) {
-        fail("assets/prerendered/rankings.html contains an <h1>; the page owns the only H1");
+        fail(`assets/prerendered/${name} contains an <h1>; the page owns the only H1`);
       }
     } else {
       let parsed;

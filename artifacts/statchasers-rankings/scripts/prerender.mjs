@@ -6,11 +6,19 @@
 // names, teams, ranks, tiers and table headings for QB, RB, WR and TE — no
 // JavaScript, no API call and no tab click required to see any of it.
 //
+// One fragment is emitted per scoring format, because scoring changes the
+// rankings themselves — a board prerendered at PPR cannot be turned into the
+// Standard board by the plugin. Position is not a content difference (every
+// panel is rendered either way; only which one is `hidden` changes), so the
+// client applies it before first paint rather than the build multiplying every
+// fragment by five.
+//
 // Outputs:
-//   dist/public/embed/rankings.html   fragment served to the plugin
-//   dist/public/embed/rankings.json   the same payload on its own
-//   <plugin>/assets/prerendered/…     committed fallback used when the plugin
-//                                     cannot reach the app host
+//   dist/public/embed/rankings.html            fragment at the default scoring
+//   dist/public/embed/rankings-<scoring>.html   one per scoring format
+//   dist/public/embed/rankings.json            the same payload on its own
+//   <plugin>/assets/prerendered/…              committed fallback used when the
+//                                              plugin cannot reach the app host
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -100,8 +108,15 @@ async function main() {
     );
   }
 
-  const { parseRankingsCsv, normalizeName, pickTeamsForPlayers, renderRankingsFragment } =
-    await import(`file://${SSR_ENTRY}`);
+  const {
+    parseRankingsCsv,
+    normalizeName,
+    pickTeamsForPlayers,
+    renderRankingsFragment,
+    POSITION_SLUGS,
+    SCORING_SLUGS,
+    SCORING_FORMATS,
+  } = await import(`file://${SSR_ENTRY}`);
 
   const csv = await readFile(CSV_PATH, "utf8");
   const players = parseRankingsCsv(csv);
@@ -120,7 +135,21 @@ async function main() {
     generatedAt: meta.updatedAtIso ?? FALLBACK_META.updatedAtIso,
   };
 
-  const fragment = renderRankingsFragment(payload);
+  // Keyed by slug so the filename, the container attribute and the plugin's
+  // rewrite rules all name the scoring format the same way.
+  const DEFAULT_SCORING_SLUG = "ppr";
+  // SCORING_SLUGS is derived from SCORING_FORMATS in the same module, so the
+  // two are parallel by construction rather than by anyone keeping them so.
+  const fragments = new Map(
+    SCORING_SLUGS.map((slug, index) => [
+      slug,
+      renderRankingsFragment(payload, { scoring: SCORING_FORMATS[index] }),
+    ]),
+  );
+  const fragment = fragments.get(DEFAULT_SCORING_SLUG);
+  if (!fragment) {
+    throw new Error(`no fragment rendered for the default scoring format`);
+  }
 
   // A small file the WordPress plugin reads to build the tool's structured
   // data. The tool renders no heading of its own — the WordPress page's H1
@@ -134,10 +163,22 @@ async function main() {
     dateModified: payload.generatedAt,
     updatedAt: payload.updatedAt,
     playerCount: players.length,
+    // The plugin builds its rewrite rules from these, so the URLs it agrees to
+    // serve are exactly the ones the tool is willing to produce. Retyping them
+    // into PHP would let the two drift, and the failure mode of that drift is a
+    // 404 on a URL the tool just wrote into the address bar.
+    routes: {
+      scoring: SCORING_SLUGS,
+      positions: POSITION_SLUGS,
+      defaultScoring: DEFAULT_SCORING_SLUG,
+    },
   };
 
   await mkdir(EMBED_OUT_DIR, { recursive: true });
   await writeFile(path.join(EMBED_OUT_DIR, "rankings.html"), fragment);
+  for (const [slug, html] of fragments) {
+    await writeFile(path.join(EMBED_OUT_DIR, `rankings-${slug}.html`), html);
+  }
   await writeFile(
     path.join(EMBED_OUT_DIR, "rankings.json"),
     `${JSON.stringify(payload)}\n`,
@@ -175,6 +216,14 @@ async function main() {
   if (existsSync(PLUGIN_DIR)) {
     await mkdir(PLUGIN_FALLBACK_DIR, { recursive: true });
     await writeFile(path.join(PLUGIN_FALLBACK_DIR, "rankings.html"), fragment);
+    // Every scoring variant ships, so an origin outage doesn't silently serve
+    // the PPR board at a /standard/ URL.
+    for (const [slug, html] of fragments) {
+      await writeFile(
+        path.join(PLUGIN_FALLBACK_DIR, `rankings-${slug}.html`),
+        html,
+      );
+    }
     await writeFile(
       path.join(PLUGIN_FALLBACK_DIR, "tool-meta.json"),
       `${JSON.stringify(toolMeta, null, 2)}\n`,
@@ -191,7 +240,9 @@ async function main() {
   const teamCount = Object.keys(teams).length;
   log(
     `rendered ${players.length} players (${teamCount} with a team) into ` +
-      `${(Buffer.byteLength(fragment) / 1024).toFixed(1)} kB of HTML`,
+      `${fragments.size} fragments of ` +
+      `${(Buffer.byteLength(fragment) / 1024).toFixed(1)} kB each ` +
+      `(${[...fragments.keys()].join(", ")})`,
   );
 }
 

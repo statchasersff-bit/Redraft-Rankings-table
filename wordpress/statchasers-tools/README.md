@@ -92,26 +92,59 @@ It never emits a second title, a second canonical, a competing robots rule, its
 own breadcrumbs, or a parallel schema graph. The rest of the behaviour below is
 a property of how the tool itself is built.
 
-### Filters are controls, not crawlable URLs
+### Filter URLs
 
-Position (All/QB/RB/WR/TE) and scoring format are `<button>` elements, and the
-"Show all" toggle is a button too. None of them is an `<a href="?position=QB">`,
-and the tool never writes its state into the URL — no `pushState`, no
-`?scoring=ppr&weeks=15-17`.
+Each scoring/position combination has a real URL:
 
-That's the point: Google crawls ordinary anchors, and faceted links over the
-same content generate a large duplicate URL space. Because the state never
-reaches the URL, there is nothing to canonicalize away and nothing to disallow
-in robots.txt.
+```
+/redraft-rankings/ppr/te/
+/redraft-rankings/standard/rb/
+/redraft-rankings/half-ppr/wr/
+```
 
-The trade-off is deliberate — filter states are **not** shareable or
-individually indexable. If you later want, say, a genuinely distinct "PPR
-rankings" landing page, build it as its own page with its own content and
-canonical, rather than by making the filters into links.
+Scoring first, then position, both always present. Sharing a link to the tight
+end board works, and so does reloading one.
+
+Three things keep this from becoming a faceted-navigation problem:
+
+1. **The controls are still `<button>`, never `<a href>`.** Google follows
+   anchors; it does not click buttons. So these URLs exist and resolve, but the
+   crawler is not handed 15 links to them from the page itself.
+2. **They canonicalize onto the page.** Every combination declares
+   `/redraft-rankings/` as its canonical, so they consolidate rather than
+   compete. See *Canonical* below.
+3. **The rewrite rules only accept known slugs.** `/redraft-rankings/foo/bar/`
+   404s exactly as it did before, rather than rendering a default board at a
+   nonsense URL.
+
+The URL is written with `replaceState`, so clicking through six position tabs
+doesn't mean six presses of Back to leave the page.
 
 Every panel for every position is rendered into the initial HTML (inactive ones
-are `hidden`, not unmounted), so all four positions are crawlable without any
-URL variants existing.
+are `hidden`, not unmounted), so all four positions are crawlable from the clean
+URL alone — the filter URLs add shareability, not crawlable content.
+
+**These are not indexable landing pages, by default.** Fifteen URLs sharing one
+H1, title and intro is duplicated thin content. To change that, filter
+`statchasers_tools_canonical_url` to return the request's own URL — but only
+alongside genuinely distinct titles and copy per combination, which is page
+content work, not a plugin setting.
+
+#### How the routing works
+
+`statchasers_tools_tool_paths()` finds published pages containing the shortcode
+and caches them in an option; `statchasers_tools_add_rewrite_rules()` registers
+one rule per page on `init`, built from the slug lists in `tool-meta.json` — the
+same lists the tool itself uses, so the URLs the plugin serves and the URLs the
+tool produces cannot drift apart.
+
+Rewrite rules live in the database, so they are flushed only when the generated
+rule set actually changes (tracked by a signature over the pages and slugs), not
+on every request. Adding the shortcode to a new page triggers a recompute via
+`save_post_page`.
+
+If filter URLs ever 404, visit **Settings → Permalinks** and save — that forces
+a rewrite flush.
 
 ### Canonical
 
@@ -392,6 +425,7 @@ The build fails on a violation. The contract is documented at the top of
 | `statchasers_tools_add_schema`     | Return `false` to omit the tool's structured data      |
 | `statchasers_tools_app_schema`     | Edit the WebApplication node, or return `null` to drop it |
 | `statchasers_tools_placeholder_height` | Height reserved on the degraded path (default 900px) |
+| `statchasers_tools_canonical_url`  | Return the request's own URL to make filter URLs indexable |
 
 ## Refreshing after a deploy
 

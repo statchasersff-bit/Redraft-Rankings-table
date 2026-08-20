@@ -3,7 +3,7 @@
  * Plugin Name:       StatChasers Tools
  * Plugin URI:        https://statchasers.com/
  * Description:       Mounts StatChasers interactive tools directly into WordPress pages. The tool's default state is server-rendered into the page HTML and then hydrated by the compiled bundle, so search engines receive the real player names, teams, ranks and table headings in the initial response instead of an empty iframe.
- * Version:           1.2.1
+ * Version:           1.3.0
  * Requires at least: 6.3
  * Requires PHP:      7.4
  * Author:            StatChasers
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'STATCHASERS_TOOLS_VERSION', '1.2.1' );
+define( 'STATCHASERS_TOOLS_VERSION', '1.3.0' );
 define( 'STATCHASERS_TOOLS_FILE', __FILE__ );
 define( 'STATCHASERS_TOOLS_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -163,18 +163,46 @@ function statchasers_tools_fetch( string $path, string $transient, string $bundl
 }
 
 /**
- * The server-rendered rankings markup.
+ * The server-rendered rankings markup for one scoring format.
+ *
+ * The build emits a fragment per scoring format, because scoring changes the
+ * rankings themselves. Position does not — every panel is in every fragment,
+ * only which one is `hidden` differs — so position is applied by the client
+ * before first paint rather than multiplying these files by five.
+ *
+ * @param string $scoring Scoring slug, already validated against the route map.
  */
-function statchasers_tools_rankings_markup(): ?string {
+function statchasers_tools_rankings_markup( string $scoring = '' ): ?string {
+	$routes = statchasers_tools_routes();
+	if ( '' === $scoring || ! in_array( $scoring, $routes['scoring'], true ) ) {
+		$scoring = $routes['default_scoring'];
+	}
+
+	$is_valid = static function ( string $body ): bool {
+		// A real fragment, not an error page or a truncated response.
+		return false !== strpos( $body, 'data-statchasers-tool="rankings"' )
+			&& false !== strpos( $body, 'data-statchasers-root' );
+	};
+
+	$markup = statchasers_tools_fetch(
+		'/embed/rankings-' . $scoring . '.html',
+		'statchasers_tools_rankings_html_' . $scoring,
+		'rankings-' . $scoring . '.html',
+		$is_valid
+	);
+
+	if ( null !== $markup ) {
+		return $markup;
+	}
+
+	// A plugin built before the per-scoring split has only the one file. Serving
+	// the default board is wrong for /standard/, but it is much better than an
+	// empty container, and the client corrects the position either way.
 	return statchasers_tools_fetch(
 		'/embed/rankings.html',
 		'statchasers_tools_rankings_html',
 		'rankings.html',
-		static function ( string $body ): bool {
-			// A real fragment, not an error page or a truncated response.
-			return false !== strpos( $body, 'data-statchasers-tool="rankings"' )
-				&& false !== strpos( $body, 'data-statchasers-root' );
-		}
+		$is_valid
 	);
 }
 
@@ -212,6 +240,59 @@ function statchasers_tools_assets(): ?array {
 }
 
 /**
+ * The URL slugs the tool is willing to produce, and the plugin agrees to serve.
+ *
+ * Read from tool-meta.json, which the tool's build writes from the same lists
+ * the tool itself uses. Retyping them here would let the two drift, and the
+ * failure mode of that drift is a 404 on a URL the tool just wrote into the
+ * address bar. The hardcoded values are a floor for the case where the file
+ * predates this feature, not a second source of truth.
+ *
+ * @return array{scoring:string[],positions:string[],default_scoring:string}
+ */
+function statchasers_tools_routes(): array {
+	static $routes = null;
+	if ( null !== $routes ) {
+		return $routes;
+	}
+
+	$defaults = array(
+		'scoring'         => array( 'standard', 'half-ppr', 'ppr' ),
+		'positions'       => array( 'all', 'qb', 'rb', 'wr', 'te' ),
+		'default_scoring' => 'ppr',
+	);
+
+	$meta = statchasers_tools_tool_meta();
+	$raw  = is_array( $meta ) && isset( $meta['routes'] ) ? $meta['routes'] : array();
+
+	$clean = static function ( $values, array $fallback ): array {
+		if ( ! is_array( $values ) ) {
+			return $fallback;
+		}
+		$out = array();
+		foreach ( $values as $value ) {
+			if ( is_string( $value ) && preg_match( '/^[a-z0-9-]+$/', $value ) ) {
+				$out[] = $value;
+			}
+		}
+
+		return empty( $out ) ? $fallback : $out;
+	};
+
+	$routes = array(
+		'scoring'   => $clean( $raw['scoring'] ?? null, $defaults['scoring'] ),
+		'positions' => $clean( $raw['positions'] ?? null, $defaults['positions'] ),
+	);
+
+	$default = isset( $raw['defaultScoring'] ) ? (string) $raw['defaultScoring'] : '';
+	$routes['default_scoring'] = in_array( $default, $routes['scoring'], true )
+		? $default
+		: $defaults['default_scoring'];
+
+	return $routes;
+}
+
+/**
  * Name, description and last-modified date for the tool.
  *
  * Written by the tool's build alongside the markup. The tool renders no heading
@@ -246,6 +327,7 @@ function statchasers_tools_tool_meta(): ?array {
 		'name'         => (string) $data['name'],
 		'description'  => isset( $data['description'] ) ? (string) $data['description'] : '',
 		'dateModified' => isset( $data['dateModified'] ) ? (string) $data['dateModified'] : '',
+		'routes'       => isset( $data['routes'] ) && is_array( $data['routes'] ) ? $data['routes'] : array(),
 	);
 }
 
@@ -554,6 +636,19 @@ function statchasers_tools_filter_canonical( $canonical ) {
 		return $clean;
 	}
 
+	// The tool's own filter paths. These are real URLs the plugin serves, so an
+	// SEO plugin may well produce one as the canonical of the current request —
+	// and 15 self-canonical variants of one board is precisely the duplicate URL
+	// space this guard exists to prevent. They fold onto the page itself.
+	//
+	// To make them indexable landing pages instead, filter
+	// `statchasers_tools_canonical_url` to return the request's own URL. That
+	// only makes sense alongside genuinely distinct titles and copy per
+	// combination — without those it is thin, duplicated content.
+	if ( statchasers_tools_is_route_url( $canonical, $clean ) ) {
+		return $clean;
+	}
+
 	return $canonical;
 }
 
@@ -563,6 +658,44 @@ function statchasers_tools_filter_canonical( $canonical ) {
  * @param string $candidate URL to test.
  * @param string $clean     The clean canonical.
  */
+/**
+ * Whether `$candidate` is `$clean` plus one of the tool's filter path segments.
+ *
+ * Matched against the known slug lists rather than "any two extra segments", so
+ * an unrelated child page under the same parent is never mistaken for tool
+ * state and silently canonicalised away.
+ */
+function statchasers_tools_is_route_url( string $candidate, string $clean ): bool {
+	$path_of = static function ( string $url ): string {
+		$parts = wp_parse_url( $url );
+		if ( ! is_array( $parts ) || ! isset( $parts['path'] ) ) {
+			return '';
+		}
+
+		return untrailingslashit( (string) $parts['path'] );
+	};
+
+	$candidate_path = $path_of( $candidate );
+	$clean_path     = $path_of( $clean );
+
+	if ( '' === $candidate_path || '' === $clean_path ) {
+		return false;
+	}
+	if ( 0 !== strpos( $candidate_path, $clean_path . '/' ) ) {
+		return false;
+	}
+
+	$rest = explode( '/', trim( substr( $candidate_path, strlen( $clean_path ) ), '/' ) );
+	if ( 2 !== count( $rest ) ) {
+		return false;
+	}
+
+	$routes = statchasers_tools_routes();
+
+	return in_array( $rest[0], $routes['scoring'], true )
+		&& in_array( $rest[1], $routes['positions'], true );
+}
+
 function statchasers_tools_is_same_page_url( string $candidate, string $clean ): bool {
 	$strip = static function ( string $url ): string {
 		$parts = wp_parse_url( $url );
@@ -864,7 +997,8 @@ function statchasers_tools_print_standalone_schema(): void {
  */
 function statchasers_tools_render_rankings(): string {
 	$origin = statchasers_tools_app_origin();
-	$markup = statchasers_tools_rankings_markup();
+	$route  = statchasers_tools_current_route();
+	$markup = statchasers_tools_rankings_markup( $route['scoring'] );
 
 	if ( null === $markup ) {
 		/**
@@ -897,13 +1031,21 @@ function statchasers_tools_render_rankings(): string {
 	// somewhere to fetch from if the embedded payload ever fails to parse. The
 	// fragment's opening tag is generated by our own renderer, so this match is
 	// exact rather than a guess at arbitrary markup.
+	$attributes = 'data-statchasers-tool="rankings"';
+
 	if ( '' !== $origin ) {
-		$markup = str_replace(
-			'data-statchasers-tool="rankings"',
-			sprintf( 'data-statchasers-tool="rankings" data-statchasers-src="%s"', esc_attr( $origin ) ),
-			$markup
-		);
+		$attributes .= sprintf( ' data-statchasers-src="%s"', esc_attr( $origin ) );
 	}
+
+	// Only this plugin knows the page's path, and only this plugin registered
+	// the rewrite rules that make sub-paths of it resolve. Supplying it is what
+	// authorises the tool to rewrite the URL at all.
+	$base = statchasers_tools_base_path();
+	if ( '' !== $base ) {
+		$attributes .= sprintf( ' data-statchasers-base="%s"', esc_attr( $base ) );
+	}
+
+	$markup = str_replace( 'data-statchasers-tool="rankings"', $attributes, $markup );
 
 	return $markup;
 }
@@ -927,9 +1069,19 @@ function statchasers_tools_rankings_shortcode(): string {
  * Drop cached markup and asset maps.
  */
 function statchasers_tools_flush_cache(): void {
+	// Resolved first: statchasers_tools_routes() reads tool-meta, and reading it
+	// after its transient was deleted would refetch from the origin as a side
+	// effect of a cache clear.
+	$scoring_slugs = statchasers_tools_routes()['scoring'];
+
 	delete_transient( 'statchasers_tools_rankings_html' );
 	delete_transient( 'statchasers_tools_assets' );
 	delete_transient( 'statchasers_tools_tool_meta' );
+
+	// One fragment per scoring format, each cached under its own key.
+	foreach ( $scoring_slugs as $scoring ) {
+		delete_transient( 'statchasers_tools_rankings_html_' . $scoring );
+	}
 }
 
 /**
@@ -947,6 +1099,165 @@ function statchasers_tools_maybe_flush_cache(): void {
 	statchasers_tools_flush_cache();
 }
 
+
+/* -------------------------------------------------------------------------
+ * Routing
+ *
+ * `/redraft-rankings/ppr/te/` has to be an address WordPress answers, not just
+ * something the tool writes into the address bar — otherwise it 404s the moment
+ * anyone reloads or shares it. These rewrite rules are that promise.
+ *
+ * They are deliberately built from the *known* slugs rather than a catch-all
+ * `([^/]+)/([^/]+)`, so `/redraft-rankings/foo/bar/` still 404s like it should
+ * instead of quietly rendering the default board at a nonsense URL.
+ * ---------------------------------------------------------------------- */
+
+/**
+ * Paths of the pages that host a tool, e.g. `redraft-rankings`.
+ *
+ * Rewrite rules have to be registered on `init`, long before the query has told
+ * us which page is being viewed, so the pages are found up front and cached in
+ * an option. A direct query is used because `WP_Query`'s `s` parameter tokenises
+ * and would not reliably match a bracketed shortcode.
+ *
+ * @param bool $refresh Recompute rather than reading the cached list.
+ *
+ * @return string[]
+ */
+function statchasers_tools_tool_paths( bool $refresh = false ): array {
+	$cached = get_option( 'statchasers_tools_tool_paths', null );
+	if ( ! $refresh && is_array( $cached ) ) {
+		return $cached;
+	}
+
+	global $wpdb;
+
+	$ids = $wpdb->get_col( // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- no core API matches shortcode content; result is cached in an option.
+		$wpdb->prepare(
+			"SELECT ID FROM {$wpdb->posts}
+			 WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE %s
+			 LIMIT 50",
+			'%' . $wpdb->esc_like( '[statchasers_rankings' ) . '%'
+		)
+	);
+
+	$paths = array();
+	foreach ( (array) $ids as $id ) {
+		$uri = get_page_uri( (int) $id );
+		if ( is_string( $uri ) && '' !== $uri ) {
+			$paths[] = trim( $uri, '/' );
+		}
+	}
+	$paths = array_values( array_unique( array_filter( $paths ) ) );
+
+	update_option( 'statchasers_tools_tool_paths', $paths, false );
+
+	return $paths;
+}
+
+/**
+ * Register a rule per hosting page, and flush only when the rule set changed.
+ *
+ * `flush_rewrite_rules()` rewrites an option holding every rule on the site, so
+ * calling it per request would be a real cost on a large site. The signature
+ * covers both the pages and the slug lists, which is exactly what the generated
+ * rules depend on.
+ */
+function statchasers_tools_add_rewrite_rules(): void {
+	$paths  = statchasers_tools_tool_paths();
+	$routes = statchasers_tools_routes();
+
+	if ( empty( $paths ) ) {
+		return;
+	}
+
+	$scoring   = implode( '|', array_map( 'preg_quote', $routes['scoring'] ) );
+	$positions = implode( '|', array_map( 'preg_quote', $routes['positions'] ) );
+
+	foreach ( $paths as $path ) {
+		add_rewrite_rule(
+			'^' . preg_quote( $path ) . '/(' . $scoring . ')/(' . $positions . ')/?$',
+			'index.php?pagename=' . $path . '&sc_scoring=$matches[1]&sc_position=$matches[2]',
+			'top'
+		);
+	}
+
+	$signature = md5( wp_json_encode( array( $paths, $routes ) ) );
+	if ( get_option( 'statchasers_tools_rewrite_signature' ) !== $signature ) {
+		update_option( 'statchasers_tools_rewrite_signature', $signature, false );
+		flush_rewrite_rules( false );
+	}
+}
+
+/**
+ * Recompute the hosting pages when content changes, so a new tool page starts
+ * serving its sub-paths without anyone visiting Settings > Permalinks.
+ */
+function statchasers_tools_refresh_routes(): void {
+	$before = get_option( 'statchasers_tools_tool_paths', null );
+	$after  = statchasers_tools_tool_paths( true );
+
+	if ( $before !== $after ) {
+		// Forces the signature check in statchasers_tools_add_rewrite_rules() to
+		// miss on the next request, which is where the rules are registered.
+		delete_option( 'statchasers_tools_rewrite_signature' );
+	}
+}
+
+/**
+ * The scoring/position this request is asking for.
+ *
+ * Query vars only — never parsed out of REQUEST_URI. If a value is here at all
+ * it arrived through a rewrite rule built from the slug lists, so it is already
+ * one of the values the tool recognises; it is re-validated anyway because the
+ * query var is publicly settable via `?sc_scoring=`.
+ *
+ * @return array{scoring:string,position:string}
+ */
+function statchasers_tools_current_route(): array {
+	$routes = statchasers_tools_routes();
+
+	$scoring  = (string) get_query_var( 'sc_scoring' );
+	$position = (string) get_query_var( 'sc_position' );
+
+	return array(
+		'scoring'  => in_array( $scoring, $routes['scoring'], true )
+			? $scoring
+			: $routes['default_scoring'],
+		'position' => in_array( $position, $routes['positions'], true )
+			? $position
+			: '',
+	);
+}
+
+/**
+ * The hosting page's own path, e.g. `/redraft-rankings/`.
+ *
+ * Handed to the tool so it knows what to prefix when it rewrites the URL. It is
+ * also the tool's permission to rewrite at all: without it the tool leaves the
+ * address bar alone, which is what keeps the standalone app — where no rewrite
+ * rules exist — from writing URLs that would 404.
+ */
+function statchasers_tools_base_path(): string {
+	if ( ! is_singular() ) {
+		return '';
+	}
+
+	$post = get_post();
+	if ( ! $post instanceof WP_Post ) {
+		return '';
+	}
+
+	$permalink = get_permalink( $post );
+	if ( ! is_string( $permalink ) || '' === $permalink ) {
+		return '';
+	}
+
+	$path = wp_parse_url( $permalink, PHP_URL_PATH );
+
+	return is_string( $path ) ? user_trailingslashit( $path ) : '';
+}
+
 /* -------------------------------------------------------------------------
  * Hooks
  * ---------------------------------------------------------------------- */
@@ -955,8 +1266,26 @@ add_action(
 	'init',
 	static function (): void {
 		add_shortcode( 'statchasers_rankings', 'statchasers_tools_rankings_shortcode' );
+		statchasers_tools_add_rewrite_rules();
 	}
 );
+
+// The rewrite rules hand the matched slugs over as query vars, so they have to
+// be registered as public ones or WordPress discards them.
+add_filter(
+	'query_vars',
+	static function ( array $vars ): array {
+		$vars[] = 'sc_scoring';
+		$vars[] = 'sc_position';
+
+		return $vars;
+	}
+);
+
+// Adding the shortcode to a new page, or moving a page that has it, changes
+// which paths need rules.
+add_action( 'save_post_page', 'statchasers_tools_refresh_routes', 10, 0 );
+add_action( 'deleted_post', 'statchasers_tools_refresh_routes', 10, 0 );
 
 add_action( 'template_redirect', 'statchasers_tools_maybe_flush_cache' );
 
@@ -993,5 +1322,25 @@ add_action( 'wp_head', 'statchasers_tools_print_standalone_schema', 99 );
 
 // A new deploy of the tool changes the hashed filenames, so clear on upgrade.
 add_action( 'upgrader_process_complete', 'statchasers_tools_flush_cache' );
-register_activation_hook( __FILE__, 'statchasers_tools_flush_cache' );
-register_deactivation_hook( __FILE__, 'statchasers_tools_flush_cache' );
+
+register_activation_hook(
+	__FILE__,
+	static function (): void {
+		statchasers_tools_flush_cache();
+		// The rules are registered on `init`, which has already run by now, so
+		// this only clears the signature — the next request registers and
+		// flushes. Doing it this way means one flush, not two.
+		statchasers_tools_tool_paths( true );
+		delete_option( 'statchasers_tools_rewrite_signature' );
+	}
+);
+
+register_deactivation_hook(
+	__FILE__,
+	static function (): void {
+		statchasers_tools_flush_cache();
+		delete_option( 'statchasers_tools_rewrite_signature' );
+		// Leaves no rules behind pointing at a plugin that is no longer running.
+		flush_rewrite_rules( false );
+	}
+);

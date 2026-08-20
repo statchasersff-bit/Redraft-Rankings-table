@@ -9,12 +9,43 @@
 
 import { createRoot, hydrateRoot } from "react-dom/client";
 import Rankings from "./pages/Rankings";
+import {
+  DEFAULT_POSITION,
+  DEFAULT_SCORING,
+  POSITIONS,
+  SCORING_FORMATS,
+  type PositionFilter,
+} from "./lib/rankings-data";
 import type { RankingsPayload } from "./lib/rankings-data";
 import "./embed.css";
 
 const TOOL_SELECTOR = '[data-statchasers-tool="rankings"]';
 const ROOT_SELECTOR = "[data-statchasers-root]";
 const PAYLOAD_SELECTOR = "script[data-statchasers-payload]";
+
+const slugify = (value: string) => value.toLowerCase().replace(/\s+/g, "-");
+
+/**
+ * The filters the server rendered this markup at.
+ *
+ * Read back from the container rather than assumed, because the client's first
+ * render has to reproduce the markup it is hydrating. The URL may be asking for
+ * something else; reconciling with it is the component's job, after hydration.
+ */
+function readRenderedFilters(container: Element) {
+  const scoringSlug = container.getAttribute("data-statchasers-scoring");
+  const positionSlug = container.getAttribute("data-statchasers-position");
+
+  return {
+    scoring:
+      SCORING_FORMATS.find((fmt) => slugify(fmt) === scoringSlug) ??
+      DEFAULT_SCORING,
+    position:
+      (POSITIONS.find(
+        (pos) => slugify(pos) === positionSlug,
+      ) as PositionFilter | undefined) ?? DEFAULT_POSITION,
+  };
+}
 
 function readPayload(container: Element): RankingsPayload | undefined {
   const el = container.querySelector(PAYLOAD_SELECTOR);
@@ -39,7 +70,22 @@ function mount(container: Element) {
     : undefined;
 
   const payload = readPayload(container);
-  const tree = <Rankings payload={payload} csvUrl={csvUrl} />;
+  const { position, scoring } = readRenderedFilters(container);
+
+  // Only the plugin knows the page's own path, and only the plugin has
+  // registered the rewrite rules that make sub-paths resolve. Absent it, the
+  // tool leaves the URL alone. See src/lib/url-state.ts.
+  const basePath = container.getAttribute("data-statchasers-base") ?? "";
+
+  const tree = (
+    <Rankings
+      payload={payload}
+      csvUrl={csvUrl}
+      basePath={basePath}
+      initialPosition={position}
+      initialScoring={scoring}
+    />
+  );
 
   if (root.dataset.prerendered === "1" && root.firstElementChild) {
     hydrateRoot(root, tree);
