@@ -71,10 +71,10 @@ export const POSITION_PLURALS: Record<StatPosition, string> = {
 
 /** Upper rank bound for each tier, in ascending order. */
 export const TIER_RULES: Record<string, [number, number][]> = {
-  QB: [[6, 1], [16, 2], [24, 3], [33, 4], [40, 5]],
-  TE: [[3, 1], [8, 2], [13, 3], [21, 4], [29, 5], [39, 6]],
-  WR: [[4, 1], [10, 2], [16, 3], [23, 4], [29, 5], [38, 6], [47, 7], [63, 8]],
-  RB: [[4, 1], [11, 2], [15, 3], [23, 4], [28, 5], [36, 6], [50, 7]],
+  QB: [[5, 1], [13, 2], [20, 3], [26, 4], [35, 5], [40, 6]],
+  TE: [[3, 1], [9, 2], [16, 3], [21, 4], [29, 5], [39, 6]],
+  WR: [[4, 1], [12, 2], [20, 3], [29, 4], [38, 5], [47, 6], [63, 7]],
+  RB: [[4, 1], [11, 2], [15, 3], [24, 4], [31, 5], [36, 6], [50, 7]],
 };
 
 export const POSITION_LIMITS: Record<string, number> = {
